@@ -6,7 +6,7 @@ import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gst
 import { getStorage } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-storage.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyC2Gu1s-PCsp1gNR-GkCthcfj3MRHz40Uw",
+  apiKey: "AIzaSyDvrvba35TWaBGBEu5QS9zcThCLzvKJZIc",
   authDomain: "my-comments-site.firebaseapp.com",
   projectId: "my-comments-site",
   storageBucket: "my-comments-site.firebasestorage.app",
