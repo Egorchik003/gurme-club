@@ -309,7 +309,7 @@
       div.innerHTML = `
         <div><span class="post-author">${escapeHtml(post.authorName || post.author)}</span> ${post.isOpen === false ? '<span class="badge closed">ЗАКРЫТ</span>' : ''}</div>
         <div class="post-title" style="cursor: pointer;" onclick="location.href='post.html?id=${postId}'">${escapeHtml(post.title)}</div>
-        <div class="post-content" style="cursor: pointer;" onclick="location.href='post.html?id=${postId}'">${linkify(escapeHtml(post.content.substring(0, 150)))}...</div>
+        <div class="post-content" style="cursor: pointer;" onclick="location.href='post.html?id=${postId}'">${linkify(post.content.substring(0, 150))}...</div>
         <div class="post-time">${post.createdAt ? new Date(post.createdAt.seconds * 1000).toLocaleString() : ''}</div>
       `;
       container.appendChild(div);
@@ -523,7 +523,7 @@
       div.innerHTML = `
         <div><span class="post-author">${escapeHtml(post.authorName || post.author)}</span> ${post.isOpen === false ? '<span class="badge closed">ЗАКРЫТ</span>' : ''}</div>
         <div class="post-title" style="cursor: pointer;" onclick="location.href='post.html?id=${postId}'">${escapeHtml(post.title)}</div>
-        <div class="post-content" style="cursor: pointer;" onclick="location.href='post.html?id=${postId}'">${linkify(escapeHtml(post.content.substring(0, 150)))}...</div>
+        <div class="post-content" style="cursor: pointer;" onclick="location.href='post.html?id=${postId}'">${linkify(post.content.substring(0, 150))}...</div>
         <div class="post-time">${post.createdAt ? new Date(post.createdAt.seconds * 1000).toLocaleString() : ''}</div>
       `;
       container.appendChild(div);
@@ -631,7 +631,7 @@
         snapshot.forEach((docSnap) => {
           const ann = docSnap.data(); const annId = docSnap.id;
           const div = document.createElement('div'); div.className = 'card'; div.style.cssText = 'background: rgba(0,0,0,0.2); margin-bottom: 15px; border-left: 4px solid var(--gold-main);';
-          div.innerHTML = `<div class="post-title" style="font-size: 20px; margin-bottom: 10px; cursor: pointer; text-decoration: underline;" onclick="location.href='announcement.html?id=${annId}'">${escapeHtml(ann.title)}</div><div class="post-content" style="cursor: pointer;" onclick="location.href='announcement.html?id=${annId}'">${linkify(escapeHtml(ann.content)).substring(0, 150)}...</div><div class="post-time">${ann.createdAt ? new Date(ann.createdAt.seconds * 1000).toLocaleString() : ''}</div>`;
+          div.innerHTML = `<div class="post-title" style="font-size: 20px; margin-bottom: 10px; cursor: pointer; text-decoration: underline;" onclick="location.href='announcement.html?id=${annId}'">${escapeHtml(ann.title)}</div><div class="post-content" style="cursor: pointer;" onclick="location.href='announcement.html?id=${annId}'">${linkify(ann.content).substring(0, 150)}...</div><div class="post-time">${ann.createdAt ? new Date(ann.createdAt.seconds * 1000).toLocaleString() : ''}</div>`;
           container.appendChild(div);
         });
       });
