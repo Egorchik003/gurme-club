@@ -1,0 +1,667 @@
+/* =========================================
+   ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И СБРОС
+   ========================================= */
+:root {
+  /* Градиентный фон как на твоем первом скрине */
+  --bg-dark: #0a0d14;       
+  --bg-panel: rgba(22, 27, 38, 0.7); /* Полупрозрачный фон панелей */
+  --bg-card: rgba(28, 35, 49, 0.6);  /* Полупрозрачный фон карточек */
+  --bg-input: rgba(10, 13, 20, 0.8);
+  
+  --gold-main: #d4af37;     
+  --gold-hover: #ffd700;    /* Более яркий золотой для свечения */
+  
+  --navy-light: rgba(42, 55, 82, 0.6);
+  
+  --text-main: #f1f5f9;     
+  --text-muted: #94a3b8;    
+  --danger: #ef4444;        
+  --success: #10b981;       
+  
+  --border-color: rgba(255, 255, 255, 0.08);
+  --radius: 16px;           /* Чуть больше скругления для современности */
+  --transition: 0.3s ease;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Делаем красивый фон с неоновым свечением */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--bg-dark);
+  background-image: 
+    radial-gradient(circle at 15% 50%, rgba(212, 175, 55, 0.08), transparent 25%),
+    radial-gradient(circle at 85% 30%, rgba(42, 55, 82, 0.4), transparent 30%);
+  background-attachment: fixed;
+  color: var(--text-main);
+  min-height: 100vh; /* Позволяем странице растягиваться */
+  display: flex;
+  flex-direction: column;
+}
+
+a { color: var(--gold-main); text-decoration: none; transition: var(--transition); }
+a:hover { color: var(--gold-hover); text-shadow: 0 0 8px rgba(255, 215, 0, 0.4); }
+
+/* =========================================
+   ШАПКА (TOP HEADER) - Эффект стекла
+   ========================================= */
+.top-header {
+  height: 70px;
+  background: var(--bg-panel);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 30px;
+  position: sticky; /* Шапка прилипает при скролле */
+  top: 0;
+  z-index: 100;
+}
+
+.header-left, .header-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.brand-small {
+  font-family: 'Playfair Display', serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--gold-main);
+  letter-spacing: 1px;
+  text-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+}
+
+.profile-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: var(--transition);
+}
+
+.profile-link:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.user-info {
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logout-icon-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logout-icon-btn:hover {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: var(--danger);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
+}
+
+/* =========================================
+   ОСНОВНОЙ МАКЕТ (САЙДБАР + КОНТЕНТ)
+   ========================================= */
+.sidebar {
+  width: 260px;
+  background: var(--bg-panel);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 15px;
+  position: fixed;
+  top: 70px;
+  bottom: 0;
+  left: 0;
+  overflow-y: auto;
+}
+
+.tabs-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  text-align: left;
+  padding: 14px 20px;
+  border-radius: var(--radius);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.tab-btn:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
+}
+
+.tab-btn.active {
+  background: linear-gradient(90deg, rgba(212, 175, 55, 0.15) 0%, transparent 100%);
+  color: var(--gold-main);
+  font-weight: 600;
+  border-left: 3px solid var(--gold-main);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  box-shadow: -5px 0 15px -5px rgba(212, 175, 55, 0.5); /* Свечение слева */
+}
+
+/* Основной контент, который скроллится вместе со страницей */
+.main-content {
+  margin-left: 260px; 
+  margin-top: 70px;   
+  padding: 30px 40px;
+  flex-grow: 1; /* Растягиваем на всю высоту */
+}
+
+.tab-content { display: none; }
+.tab-content.active { display: block; animation: fadeIn 0.4s ease; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* =========================================
+   КАРТОЧКИ И ЭЛЕМЕНТЫ ФОРМ (GLASSMORPHISM)
+   ========================================= */
+.card {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 25px;
+  margin-bottom: 20px;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3); /* Глубокая тень */
+  transition: var(--transition);
+}
+
+.card:hover {
+  border-color: rgba(212, 175, 55, 0.3); /* Легкая золотая подсветка при наведении */
+}
+
+.brand {
+  font-family: 'Playfair Display', serif;
+  font-size: 32px;
+  color: var(--gold-main);
+  text-align: center;
+  margin-bottom: 20px;
+  text-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
+}
+
+.container {
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+h2, h3, h4 { color: var(--gold-main); font-weight: 600; margin-bottom: 15px; }
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea,
+select,
+.rich-editor {
+  width: 100%;
+  background-color: var(--bg-input);
+  border: 1px solid var(--navy-light);
+  color: var(--text-main);
+  padding: 14px 16px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-family: inherit;
+  margin-bottom: 15px;
+  transition: var(--transition);
+}
+
+input:focus, textarea:focus, .rich-editor:focus {
+  outline: none;
+  border-color: var(--gold-main);
+  box-shadow: 0 0 12px rgba(212, 175, 55, 0.2); /* Свечение при фокусе */
+}
+
+textarea { resize: vertical; min-height: 100px; }
+
+.rich-editor {
+  min-height: 200px;
+  overflow-y: auto;
+}
+
+.rich-editor:empty:before {
+  content: attr(data-placeholder);
+  color: var(--text-muted);
+  pointer-events: none;
+  display: block;
+}
+
+button {
+  background: linear-gradient(135deg, var(--gold-main), #b8952e);
+  color: #000;
+  border: none;
+  padding: 14px 20px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  transition: var(--transition);
+  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.2);
+}
+
+button:hover { 
+  background: linear-gradient(135deg, #ffd700, var(--gold-main));
+  box-shadow: 0 6px 20px rgba(212, 175, 55, 0.4);
+  transform: translateY(-1px);
+}
+
+button.secondary {
+  background: transparent;
+  border: 1px solid var(--navy-light);
+  color: var(--text-main);
+  box-shadow: none;
+}
+button.secondary:hover { 
+  background-color: rgba(255, 255, 255, 0.05); 
+  border-color: var(--gold-main); 
+  color: var(--gold-main);
+}
+
+button.danger { background: var(--danger); color: #fff; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3); }
+button.danger:hover { background: #dc2626; box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5); }
+
+/* =========================================
+   СПЕЦИФИЧНЫЕ ЭЛЕМЕНТЫ
+   ========================================= */
+.post-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 10px;
+  transition: var(--transition);
+}
+.post-title:hover { color: var(--gold-main); text-shadow: 0 0 8px rgba(212, 175, 55, 0.3); }
+
+.post-content { color: var(--text-muted); line-height: 1.6; margin-bottom: 15px; }
+.post-time { font-size: 13px; color: var(--text-muted); margin-bottom: 15px; }
+.post-author { font-weight: 600; color: var(--gold-main); font-size: 14px; }
+
+.post-number {
+  background: rgba(212, 175, 55, 0.15);
+  color: var(--gold-main);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: bold;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+.badge {
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.badge.admin { background: rgba(212, 175, 55, 0.2); color: var(--gold-main); border: 1px solid rgba(212, 175, 55, 0.3); }
+.badge.user { background: rgba(148, 163, 184, 0.2); color: var(--text-muted); }
+.badge.closed { background: rgba(239, 68, 68, 0.2); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.3); }
+
+.comment {
+  background-color: rgba(0, 0, 0, 0.2);
+  padding: 15px;
+  border-radius: 12px;
+  margin-bottom: 10px;
+  border-left: 2px solid var(--navy-light);
+}
+
+.comment.reply {
+  background-color: transparent;
+  border-left: 2px solid var(--gold-main);
+  margin-left: 20px;
+}
+
+.editor-toolbar {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 10px;
+  background: var(--bg-input);
+  padding: 5px;
+  border-radius: 10px;
+}
+.editor-toolbar button {
+  width: auto;
+  padding: 6px 12px;
+  background: transparent;
+  color: var(--text-main);
+  border-radius: 6px;
+  box-shadow: none;
+  transform: none;
+}
+.editor-toolbar button:hover { background: var(--navy-light); transform: none; box-shadow: none; }
+
+.post-actions { display: flex; gap: 8px; }
+.icon-btn {
+  width: auto;
+  padding: 8px;
+  background: var(--bg-input);
+  color: var(--text-muted);
+  border-radius: 8px;
+  box-shadow: none;
+  transform: none;
+}
+.icon-btn:hover { color: var(--gold-main); background: var(--navy-light); transform: none; box-shadow: none; }
+.icon-btn.danger-icon:hover { color: var(--danger); background: rgba(239, 68, 68, 0.1); }
+
+/* =========================================
+   ЧАТЫ (MESSENGER)
+   ========================================= */
+.messenger-layout {
+  display: flex;
+  height: calc(100vh - 130px); /* Чат оставляем фиксированным по высоте для удобства */
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.chat-sidebar {
+  width: 300px;
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.sidebar-header {
+  padding: 20px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-main);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.chat-list { flex-grow: 1; overflow-y: auto; }
+
+.chat-list-item {
+  display: flex;
+  gap: 12px;
+  padding: 15px 20px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-color);
+  transition: var(--transition);
+}
+.chat-list-item:hover { background: rgba(255, 255, 255, 0.05); }
+.chat-list-item.active { background: rgba(212, 175, 55, 0.1); border-left: 3px solid var(--gold-main); }
+
+.chat-list-avatar {
+  width: 45px; height: 45px; border-radius: 50%; object-fit: cover; border: 1px solid var(--navy-light);
+}
+
+.chat-list-info { flex-grow: 1; overflow: hidden; }
+.chat-list-name { font-weight: 600; color: var(--text-main); font-size: 15px; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
+.chat-list-number { font-size: 11px; color: var(--gold-main); background: rgba(212, 175, 55, 0.1); padding: 2px 6px; border-radius: 4px; }
+.chat-list-last-msg { font-size: 13px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.chat-main { flex-grow: 1; display: flex; flex-direction: column; background: rgba(10, 13, 20, 0.5); }
+
+.chat-placeholder {
+  flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  color: var(--text-muted); gap: 15px;
+}
+
+.chat-header {
+  padding: 15px 20px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 15px; background: rgba(22, 27, 38, 0.8);
+}
+.chat-header-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+
+.chat-messages { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+
+.chat-bubble {
+  max-width: 70%; padding: 12px 16px; border-radius: 12px; font-size: 14px; line-height: 1.4; position: relative; word-wrap: break-word;
+}
+.chat-bubble.my-msg { 
+  background: linear-gradient(135deg, var(--gold-main), #b8952e); 
+  color: #000; 
+  align-self: flex-end; 
+  border-bottom-right-radius: 2px; 
+  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.2);
+}
+.chat-bubble.their-msg { 
+  background: rgba(28, 35, 49, 0.9); 
+  color: var(--text-main); 
+  align-self: flex-start; 
+  border-bottom-left-radius: 2px; 
+  border: 1px solid var(--border-color); 
+}
+.chat-time { font-size: 10px; opacity: 0.7; display: block; text-align: right; margin-top: 5px; }
+
+.chat-input-area {
+  padding: 15px 20px; background: rgba(22, 27, 38, 0.8); border-top: 1px solid var(--border-color);
+  display: flex; align-items: center; gap: 10px; position: relative;
+}
+.chat-input-area input {
+  flex-grow: 1; margin: 0; border-radius: 20px; padding: 12px 20px; background: var(--bg-input);
+}
+.chat-input-area .icon-btn { border-radius: 50%; padding: 10px; }
+
+.emoji-picker {
+  position: absolute; bottom: 70px; left: 20px; background: var(--bg-card); border: 1px solid var(--border-color);
+  border-radius: 8px; padding: 10px; display: flex; flex-wrap: wrap; gap: 5px; width: 200px; z-index: 10;
+  backdrop-filter: blur(10px);
+}
+.emoji-picker span { cursor: pointer; font-size: 20px; padding: 5px; transition: transform 0.1s; }
+.emoji-picker span:hover { transform: scale(1.2); }
+
+/* =========================================
+   ВСПОМОГАТЕЛЬНЫЕ КЛАССЫ И АНИМАЦИИ
+   ========================================= */
+.error { color: var(--danger); font-size: 14px; margin-bottom: 15px; font-weight: 500; }
+.error.success { color: var(--success); }
+.success { color: var(--success); font-size: 14px; margin-bottom: 15px; }
+
+.password-wrapper { position: relative; }
+.password-wrapper input { padding-right: 45px; margin-bottom: 15px; }
+.toggle-password {
+  position: absolute; right: 10px; top: 14px; background: transparent; border: none;
+  color: var(--text-muted); cursor: pointer; font-size: 18px; width: auto; padding: 0;
+  box-shadow: none; transform: none;
+}
+.toggle-password:hover { background: transparent; color: var(--gold-main); transform: none; box-shadow: none; }
+
+hr { border: none; border-top: 1px solid var(--border-color); margin: 20px 0; }
+
+/* Скрываем стандартный скроллбар, чтобы было красивее */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-dark); }
+::-webkit-scrollbar-thumb { background: var(--navy-light); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--gold-main); }
+/* =========================================
+   ФОН С ЦВЕТАМИ (Плавное падение)
+   ========================================= */
+
+/* Контейнер для цветов (предполагаю, что скрипт создает div с таким классом или id) */
+#flower-container, .flowers-bg, #flowers {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none; /* Чтобы цветы не мешали кликать по кнопкам */
+  z-index: -1; /* Отправляем на самый задний план */
+  overflow: hidden;
+  opacity: 0.4; /* Делаем их полупрозрачными, чтобы не резали глаз */
+}
+
+/* Если цветы создаются как отдельные элементы (span/img) */
+.flower, .flower-item {
+  position: absolute;
+  top: -50px;
+  animation: fall linear infinite;
+  filter: blur(1px); /* Легкое размытие для глубины */
+}
+
+/* Анимация плавного падения */
+@keyframes fall {
+  0% {
+    transform: translateY(-10vh) rotate(0deg);
+  }
+  100% {
+    transform: translateY(110vh) rotate(360deg);
+  }
+}
+/* Ограничение размера картинок внутри постов и объявлений */
+.post-content img, 
+.rich-editor img,
+.card img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 10px 0;
+  display: block;
+}
+.post-content img, 
+.rich-editor img,
+.card img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 10px 0;
+  display: block;
+}
+/* =========================================
+   ОПТИМИЗАЦИЯ: ПЛАВНОСТЬ И ЗАГРУЗКА
+   ========================================= */
+
+/* Плавное появление страницы */
+body {
+  animation: fadeInPage 0.4s ease-out;
+}
+
+@keyframes fadeInPage {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Скелетоны (мерцающие заглушки) */
+.skeleton-card {
+  height: 150px;
+  background: linear-gradient(90deg, rgba(28, 35, 49, 0.6) 25%, rgba(42, 55, 82, 0.8) 50%, rgba(28, 35, 49, 0.6) 75%);
+  background-size: 200% 100%;
+  animation: loadingSkeleton 1.5s infinite linear;
+  border-radius: var(--radius);
+  margin-bottom: 20px;
+  border: 1px solid var(--border-color);
+}
+
+.skeleton-comment {
+  height: 60px;
+  background: linear-gradient(90deg, rgba(28, 35, 49, 0.6) 25%, rgba(42, 55, 82, 0.8) 50%, rgba(28, 35, 49, 0.6) 75%);
+  background-size: 200% 100%;
+  animation: loadingSkeleton 1.5s infinite linear;
+  border-radius: var(--radius);
+  margin-bottom: 10px;
+}
+
+@keyframes loadingSkeleton {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Плавное появление контента во вкладках */
+.tab-content.active {
+  animation: fadeInTab 0.3s ease-out forwards;
+}
+
+@keyframes fadeInTab {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+/* Модальное окно подтверждения */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.modal-overlay.active {
+  opacity: 1;
+}
+.modal-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 25px;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  transform: translateY(20px);
+  transition: transform 0.3s;
+}
+.modal-overlay.active .modal-box {
+  transform: translateY(0);
+}
+.modal-box h3 {
+  color: var(--gold-main);
+  margin-bottom: 15px;
+}
+.modal-box p {
+  color: var(--text-main);
+  margin-bottom: 20px;
+}
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+.modal-actions button {
+  width: auto;
+  padding: 10px 20px;
+}
+/* Ограничение ширины для карточек постов */
+#posts-container .card,
+#directory-posts-container .card,
+#announcements-container .card {
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+}

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <meta charset="UTF-8">
+  <title>ГурмэКлаб — Пользовательское соглашение</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <script type="module">
+    import { renderSidebar, renderHeader, renderFooter } from "./components.js";
+    renderHeader();
+    renderSidebar('');
+    renderFooter();
+  </script>
+  <main class="main-content">
+    <div class="card" style="max-width: 800px; margin: 0 auto;">
+      <h2 style="color: var(--gold-main);">Пользовательское соглашение</h2>
+      <p style="margin-top: 20px; line-height: 1.8;">Используя сайт «ГурмэКлаб», вы соглашаетесь соблюдать следующие правила.</p>
+      <h3 style="color: var(--gold-main); margin-top: 25px;">1. Общие положения</h3>
+      <p style="line-height: 1.8;">Сайт предназначен для обмена информацией и общения между пользователями. Администрация оставляет за собой право модерировать контент.</p>
+      <h3 style="color: var(--gold-main); margin-top: 25px;">2. Правила поведения</h3>
+      <p style="line-height: 1.8;">Запрещается: оскорблять других пользователей, размещать спам, публиковать незаконный контент или пытаться взломать сайт.</p>
+      <h3 style="color: var(--gold-main); margin-top: 25px;">3. Ответственность</h3>
+      <p style="line-height: 1.8;">Пользователь несет ответственность за содержание своих сообщений и постов. Администрация не несет ответственности за действия третьих лиц.</p>
+      <button class="secondary" onclick="history.back()" style="margin-top: 30px;">← Назад</button>
+    </div>
+  </main>
+</body>
+</html>

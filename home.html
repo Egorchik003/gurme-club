@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&display=swap" rel="stylesheet">
+  <meta charset="UTF-8">
+  <title>ГурмэКлаб — Главная</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Подключаем единую шапку и меню -->
+  <script type="module">
+    import { renderSidebar, renderHeader, renderFooter} from "./components.js";
+    renderHeader();
+    renderSidebar('home');
+    renderFooter();
+  </script>
+
+  <main class="main-content">
+    <div class="header" style="margin-bottom: 30px;">
+      <div>
+        <h1 id="greeting" style="font-size: 32px; color: #fff;">Добрый день!</h1>
+        <p id="current-date" style="color: var(--text-muted);">Сегодня...</p>
+      </div>
+    </div>
+
+    <div class="action-buttons" style="display: flex; gap: 15px; margin-bottom: 30px;">
+      <button class="action-btn" onclick="location.href='feed.html'" style="background-color: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 10px 20px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+        📰 Перейти в ленту
+      </button>
+      <button class="action-btn" onclick="location.href='feed.html?tab=messages'" style="background-color: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 10px 20px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+        💬 Сообщения
+      </button>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+      <!-- Последние посты -->
+      <div class="card">
+        <h2 style="color: var(--gold-main); font-size: 20px; margin-bottom: 15px;">Последние посты</h2>
+        <div id="latest-posts">
+          <p style="color: var(--text-muted);">Загрузка...</p>
+        </div>
+      </div>
+
+      <!-- Последние объявления -->
+      <div class="card">
+        <h2 style="color: var(--gold-main); font-size: 20px; margin-bottom: 15px;">Объявления</h2>
+        <div id="latest-announcements">
+          <p style="color: var(--text-muted);">Загрузка...</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { auth, db } from "./app.js";
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+    import { doc, getDoc, collection, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+
+    window.logout = () => signOut(auth);
+
+    const hour = new Date().getHours();
+    let greeting = "Добрый день!";
+    if (hour < 6) greeting = "Доброй ночи!";
+    else if (hour < 12) greeting = "Доброе утро!";
+    else if (hour < 18) greeting = "Добрый день!";
+    else greeting = "Добрый вечер!";
+    
+    const greetingEl = document.getElementById('greeting');
+    if (greetingEl) greetingEl.innerText = greeting;
+    
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    const dateEl = document.getElementById('current-date');
+    if (dateEl) dateEl.innerText = new Date().toLocaleDateString('ru-RU', options);
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) { window.location.href = "index.html"; return; }
+
+      const userSnap = await getDoc(doc(db, "users", user.uid));
+      const userData = userSnap.data() || { name: user.email, role: "user" };
+      const isAdmin = userData.role === "admin";
+
+      const numberHtml = userData.number ? ` <span class="post-number">№${userData.number}</span>` : '';
+      const userInfoEl = document.getElementById('user-info');
+      if (userInfoEl) {
+        userInfoEl.innerHTML = `${userData.name}${numberHtml}` + (isAdmin ? ' <span class="badge admin">ADMIN</span>' : ' <span class="badge user">USER</span>');
+              if (isAdmin) {
+        const createBtn = document.getElementById('create-btn');
+        if (createBtn) createBtn.style.display = 'inline-block';
+      const createPostBtn = document.getElementById('create-post-btn');
+        if (createPostBtn) createPostBtn.style.display = 'flex'; // или 'inline-block'
+      }
+      }
+
+      loadLatestPosts(isAdmin);
+      loadLatestAnnouncements();
+    });
+
+    function loadLatestPosts(isAdmin) {
+      const container = document.getElementById('latest-posts');
+      if (!container) return;
+      const q = query(collection(db, "posts"), orderBy("createdAt", "desc"), limit(3));
+      
+      onSnapshot(q, (snapshot) => {
+        container.innerHTML = '';
+        if (snapshot.empty) { container.innerHTML = '<p style="color: var(--text-muted);">Пока нет постов.</p>'; return; }
+        snapshot.forEach(docSnap => {
+          const post = docSnap.data();
+          if (post.isOpen === false && !isAdmin) return;
+          const a = document.createElement('a');
+          a.href = `post.html?id=${docSnap.id}`;
+          a.style.cssText = "display: block; padding: 10px; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;";
+          a.innerHTML = `<div style="font-weight: bold; color: var(--text-main); margin-bottom: 4px;">${post.title}</div><div style="font-size: 12px; color: var(--text-muted);">${post.authorName || post.author}</div>`;
+          container.appendChild(a);
+        });
+      });
+    }
+
+    function loadLatestAnnouncements() {
+      const container = document.getElementById('latest-announcements');
+      if (!container) return;
+      const q = query(collection(db, "announcements"), orderBy("createdAt", "desc"), limit(3));
+      
+      onSnapshot(q, (snapshot) => {
+        container.innerHTML = '';
+        if (snapshot.empty) { container.innerHTML = '<p style="color: var(--text-muted);">Пока нет объявлений.</p>'; return; }
+        snapshot.forEach(docSnap => {
+          const ann = docSnap.data();
+          const a = document.createElement('a');
+          a.href = `announcement.html?id=${docSnap.id}`;
+          a.style.cssText = "display: block; padding: 10px; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;";
+          a.innerHTML = `<div style="font-weight: bold; color: var(--gold-main); margin-bottom: 4px;">${ann.title}</div><div style="font-size: 12px; color: var(--text-muted);">${ann.authorName || ann.author}</div>`;
+          container.appendChild(a);
+        });
+      });
+    }
+  </script>
+</body>
+</html>

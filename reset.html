@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <meta charset="UTF-8">
+  <title>ГурмэКлаб — Новый пароль</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <div class="brand">ГурмэКлаб</div>
+
+    <div class="card">
+      <h2>Установка нового пароля</h2>
+      <div id="error" class="error"></div>
+      <div id="info" class="success"></div>
+
+      <!-- Скрытый блок с формой (покажем, когда проверим код) -->
+      <div id="reset-form" style="display:none;">
+        <p>Новый пароль для: <strong id="user-email"></strong></p>
+        <div class="password-wrapper">
+  <input type="password" id="new-password" placeholder="Новый пароль (6+ символов)">
+  <button type="button" class="toggle-password" onclick="togglePassword('new-password', this)">👁</button>
+</div>
+
+<div class="password-wrapper">
+  <input type="password" id="new-password-repeat" placeholder="Повторите пароль">
+  <button type="button" class="toggle-password" onclick="togglePassword('new-password-repeat', this)">👁</button>
+</div>
+        <div class="password-wrapper">
+  <input type="password" id="new-password" placeholder="Новый пароль (6+ символов)">
+  <button type="button" class="toggle-password" onclick="togglePassword('new-password', this)">👁</button>
+</div>
+
+<div class="password-wrapper">
+  <input type="password" id="new-password-repeat" placeholder="Повторите пароль">
+  <button type="button" class="toggle-password" onclick="togglePassword('new-password-repeat', this)">👁</button>
+</div>
+        <button onclick="saveNewPassword()">Сохранить пароль</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { auth } from "./app.js";
+    import { verifyPasswordResetCode, confirmPasswordReset } 
+      from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+      import { showToast, showConfirm, initFlowers } from "./ui.js";
+
+    // Достаём код из ссылки (oobCode)
+    const params = new URLSearchParams(window.location.search);
+    const actionCode = params.get('oobCode');
+
+    const errorDiv = document.getElementById('error');
+    const infoDiv = document.getElementById('info');
+
+    if (!actionCode) {
+      errorDiv.innerText = 'Неверная ссылка. Запросите сброс пароля заново.';
+    } else {
+      // Проверяем, действителен ли код
+      verifyPasswordResetCode(auth, actionCode)
+        .then((email) => {
+          // Код верный — показываем форму
+          document.getElementById('reset-form').style.display = 'block';
+          document.getElementById('user-email').innerText = email;
+          infoDiv.innerText = 'Код подтверждён. Введите новый пароль.';
+        })
+        .catch((error) => {
+          errorDiv.innerText = 'Ссылка устарела или уже была использована. Запросите сброс заново.';
+        });
+    }
+
+    window.saveNewPassword = async () => {
+      const pass1 = document.getElementById('new-password').value;
+      const pass2 = document.getElementById('new-password-repeat').value;
+      
+      if (pass1.length < 6) {
+        errorDiv.innerText = 'Пароль должен содержать минимум 6 символов.';
+        return;
+      }
+      if (pass1 !== pass2) {
+        errorDiv.innerText = 'Пароли не совпадают.';
+        return;
+      }
+
+      try {
+        await confirmPasswordReset(auth, actionCode, pass1);
+        infoDiv.innerText = 'Пароль успешно изменён! Сейчас перенаправим на страницу входа...';
+        setTimeout(() => { window.location.href = 'index.html'; }, 2000);
+      } catch (error) {
+        errorDiv.innerText = 'Ошибка: ' + error.message;
+      }
+    };
+    initFlowers();
+  </script>
+</body>
+</html>

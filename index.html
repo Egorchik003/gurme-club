@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <meta charset="UTF-8">
+  <title>ГурмэКлаб — Вход</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container" style="max-width: 450px; margin: 100px auto; padding: 0 20px;">
+    <div class="brand">ГурмэКлаб</div>
+
+    <div class="card">
+      <h2 id="form-title">Войти</h2>
+      <div id="error" class="error"></div>
+
+      <!-- Поле "Имя" показывается только при регистрации -->
+      <input type="text" id="name" placeholder="Ваше имя" style="display:none;">
+      <input type="email" id="email" placeholder="Email">
+      <div class="password-wrapper">
+  <input type="password" id="password" placeholder="Пароль">
+  <button type="button" class="toggle-password" onclick="togglePassword('password', this)" title="Показать пароль">
+    👁
+  </button>
+</div>
+
+      <button id="submit-btn" onclick="handleSubmit()">Войти</button>
+      <button class="secondary" onclick="sendLoginLink()" style="margin-top: 10px;">Войти по ссылке (без пароля)</button>
+      <p style="margin-top:12px; text-align:center;">
+        <span id="switch-text">Нет аккаунта? <a href="#" onclick="toggleMode(event)">Зарегистрироваться
+        </a></span>
+      </p>
+      <p style="text-align:center; margin-top:10px;">
+  <a href="#" onclick="forgotPassword(event)">Забыли пароль?</a>
+</p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { auth, db } from "./app.js";
+    import { doc, getDoc, setDoc, updateDoc, increment, serverTimestamp } 
+      from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+      import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail, sendSignInLinkToEmail } 
+  from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+  import { showToast, showConfirm, initFlowers } from "./ui.js";
+
+  function getErrorMessage(error) {
+  const code = error.code || '';
+
+  const messages = {
+    'auth/invalid-credential':       'Неверная почта или пароль.',
+    'auth/wrong-password':           'Неверная почта или пароль.',
+    'auth/user-not-found':           'Пользователь с такой почтой не найден.',
+    'auth/invalid-email':            'Некорректный email. Проверьте корректность введённых данных.',
+    'auth/email-already-in-use':     'Эта почта уже зарегистрирована. Попробуйте войти.',
+    'auth/weak-password':            'Пароль слишком короткий. Минимум 6 символов.',
+    'auth/too-many-requests':        'Слишком много попыток. Повторите позже.',
+    'auth/network-request-failed':   'Проблема с интернетом. Проверьте соединение.',
+    'auth/operation-not-allowed':    'Вход по email временно отключён.',
+    'auth/missing-email':            'Введите email.',
+    'auth/unauthorized-continue-uri':'Ошибка настройки сайта. Обратитесь к администратору.',
+    'auth/invalid-action-code':      'Ссылка устарела или уже использована.',
+    'auth/expired-action-code':      'Ссылка устарела. Запросите сброс пароля заново.',
+    'auth/user-disabled':            'Этот аккаунт заблокирован.'
+  };
+
+  return messages[code] || 'Произошла ошибка. Попробуйте ещё раз.';
+}
+
+    let isLogin = true;
+    let isRegistering = false;
+
+onAuthStateChanged(auth, (user) => {
+  // Если пользователь вошёл, но это НЕ процесс регистрации — перекидываем
+  if (user && !isRegistering) {
+    window.location.href = "home.html";
+  }
+});
+
+    window.toggleMode = (e) => {
+      e.preventDefault();
+      isLogin = !isLogin;
+      document.getElementById('form-title').innerText = isLogin ? 'Войти' : 'Регистрация';
+      document.getElementById('submit-btn').innerText = isLogin ? 'Войти' : 'Создать аккаунт';
+      document.getElementById('name').style.display = isLogin ? 'none' : 'block';
+      document.getElementById('switch-text').innerHTML = isLogin 
+        ? 'Нет аккаунта? <a href="#" onclick="toggleMode(event)">Зарегистрироваться</a>'
+        : 'Есть аккаунт? <a href="#" onclick="toggleMode(event)">Войти</a>';
+    };
+
+    // Функция получения следующего номера (001, 002, ...)
+    async function getNextUserNumber() {
+      const counterRef = doc(db, "counters", "users");
+      const counterSnap = await getDoc(counterRef);
+
+      let nextNumber = 1;
+      if (counterSnap.exists()) {
+        nextNumber = counterSnap.data().lastNumber + 1;
+      }
+
+      await setDoc(counterRef, { lastNumber: nextNumber }, { merge: true });
+      // Форматируем в 3 знака: 1 → "001"
+      return String(nextNumber).padStart(3, "0");
+    }
+
+window.handleSubmit = async () => {
+  const name = document.getElementById('name').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const errorDiv = document.getElementById('error');
+  errorDiv.innerText = '';
+  errorDiv.className = 'error';
+
+  console.log('🟡 handleSubmit вызван. isLogin =', isLogin);
+
+  try {
+    if (isLogin) {
+      await signInWithEmailAndPassword(auth, email, password);
+    } else {
+      isRegistering = true;   // ← БЛОКИРУЕМ редирект из onAuthStateChanged
+
+      if (!name) {
+        errorDiv.style.color = '#dc2626';
+        errorDiv.innerText = 'Введите имя';
+        isRegistering = false;
+        return;
+      }
+
+      console.log('🟡 Шаг 1: создаю пользователя в Authentication...');
+      const userCred = await createUserWithEmailAndPassword(auth, email, password);
+      const uid = userCred.user.uid;
+      console.log('🟢 Шаг 1 готов. UID:', uid);
+
+      let userNumber = "---";
+      try {
+        userNumber = await getNextUserNumber();
+        console.log('🟢 Шаг 2 готов. Номер:', userNumber);
+      } catch (e) {
+        console.warn('🟠 Шаг 2 упал, но продолжаем:', e.code, e.message);
+      }
+
+      console.log('🟡 Шаг 3: создаю документ в users...');
+      await setDoc(doc(db, "users", uid), {
+        name: name,
+        email: email,
+        number: userNumber,
+        role: "user",
+        createdAt: serverTimestamp()
+      });
+      console.log('🟢 Шаг 3 готов. Документ создан!');
+
+      // Редирект — только теперь
+      window.location.href = "home.html";
+    }
+  } catch (error) {
+    isRegistering = false;   // ← сбрасываем флаг при ошибке
+    errorDiv.className = 'error';
+    errorDiv.style.color = '#dc2626';
+    errorDiv.innerText = getErrorMessage(error);
+    console.error('🔴 Ошибка handleSubmit:', error.code, error.message);
+  }
+};
+window.forgotPassword = async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('email').value.trim();
+  const errorDiv = document.getElementById('error');
+
+  if (!email) {
+    errorDiv.style.color = '#dc2626';
+    errorDiv.innerText = 'Введите email, указанный при регистрации.';
+    return;
+  }
+
+  try {
+    await sendPasswordResetEmail(auth, email, {
+      // ВАЖНО: указываем свой сайт, куда Firebase перенаправит
+      url: window.location.origin + '/reset.html'
+    });
+    errorDiv.style.color = ''; // сброс
+errorDiv.className = 'error success';
+errorDiv.innerText = 'Письмо со ссылкой для сброса пароля отправлено на ' + email;
+} catch (error) {
+  errorDiv.className = 'error';
+errorDiv.style.color = '#dc2626';
+errorDiv.innerText = getErrorMessage(error);
+}
+};
+window.togglePassword = (inputId, buttonEl) => {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+
+  if (input.type === 'password') {
+    input.type = 'text';
+    buttonEl.innerText = '🙈';           // «закрытый глаз»
+    buttonEl.title = 'Скрыть пароль';
+  } else {
+    input.type = 'password';
+    buttonEl.innerText = '👁';           // «открытый глаз»
+    buttonEl.title = 'Показать пароль';
+  }
+};
+
+window.sendLoginLink = async () => {
+  const email = document.getElementById('email').value.trim();
+  const errorDiv = document.getElementById('error');
+  errorDiv.innerText = '';
+
+  if (!email) {
+    errorDiv.style.color = '#dc2626';
+    errorDiv.innerText = 'Введите email для входа.';
+    return;
+  }
+
+  // Настройки ссылки
+  const actionCodeSettings = {
+    url: window.location.origin + '/home.html', // Куда перекинуть после входа
+    handleCodeInApp: true, // Важно для входа по ссылке
+  };
+
+  try {
+    await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+    // Сохраняем email, чтобы подтвердить его при переходе по ссылке
+    window.localStorage.setItem('emailForSignIn', email);
+    errorDiv.style.color = '#16a34a';
+    errorDiv.innerText = 'Ссылка для входа отправлена на ' + email;
+  } catch (error) {
+    errorDiv.style.color = '#dc2626';
+    errorDiv.innerText = 'Ошибка: ' + error.message;
+  }
+};
+initFlowers();
+  </script>
+</body>
+</html>

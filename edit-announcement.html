@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  
+  <meta charset="UTF-8">
+  <title>ГурмэКлаб — Редактировать объявление</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <script type="module">
+    import { renderSidebar, renderHeader, renderFooter } from "./components.js";
+    renderHeader();
+    renderFooter();
+  </script>
+
+  <main class="main-content">
+    <div class="container" style="margin: 100px auto 40px auto; max-width: 800px; padding: 0 20px;">
+      <div class="card">
+        <h2>Редактировать объявление</h2>
+        <div id="error" class="error"></div>
+
+        <div class="editor-toolbar">
+          <button type="button" onclick="execCmd('bold')" title="Жирный"><b>Ж</b></button>
+          <button type="button" onclick="execCmd('italic')" title="Курсив"><i>К</i></button>
+          <button type="button" onclick="execCmd('underline')" title="Подчёркнутый"><u>Ч</u></button>
+          <input type="file" id="ann-image-input" accept="image/*" style="display: none;" onchange="uploadAnnImage()">
+<button type="button" onclick="document.getElementById('ann-image-input').click()" title="Картинка">🖼</button>
+        </div>
+
+        <input type="text" id="ann-title" placeholder="Заголовок объявления">
+        <div id="ann-content" class="rich-editor" contenteditable="true" data-placeholder="Текст объявления..."></div>
+
+        <button onclick="saveAnnouncement()">Сохранить изменения</button>
+        <button class="secondary" onclick="history.back()" style="margin-top: 8px;">Назад</button>
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { auth, db } from "./app.js";
+    import { showToast } from "./ui.js";
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+    import { doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+    import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-storage.js";
+import { storage } from "./app.js";
+
+    let userData = null;
+    let annId = new URLSearchParams(window.location.search).get('id');
+
+    if (!annId) window.location.href = 'feed.html?tab=announcements';
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) { window.location.href = "index.html"; return; }
+      
+      const snap = await getDoc(doc(db, 'users', user.uid));
+      userData = snap.data();
+      if (userData?.role !== 'admin') {
+        showToast('Доступ только для администратора', 'error', 3000);
+        setTimeout(() => window.location.href = "feed.html?tab=announcements", 1000);
+        return;
+      }
+
+      // Загружаем данные объявления
+      const annSnap = await getDoc(doc(db, 'announcements', annId));
+      if (annSnap.exists()) {
+        const ann = annSnap.data();
+        document.getElementById('ann-title').value = ann.title || '';
+        document.getElementById('ann-content').innerHTML = ann.content || '';
+      } else {
+        showToast('Объявление не найдено', 'error', 3000);
+      }
+    });
+
+    window.logout = () => signOut(auth);
+
+    window.execCmd = (cmd) => {
+      document.execCommand(cmd, false, null);
+      document.getElementById('ann-content').focus();
+    };
+
+window.uploadAnnImage = async () => {
+  const fileInput = document.getElementById('ann-image-input');
+  const file = fileInput.files[0];
+  if (!file) return;
+
+  showToast('Загрузка картинки...', 'info', 2000);
+  const storageRef = ref(storage, `announcements/${Date.now()}_${file.name}`);
+  
+  try {
+    await uploadBytes(storageRef, file);
+    const downloadURL = await getDownloadURL(storageRef);
+    
+    document.getElementById('ann-content').focus();
+    document.execCommand('insertImage', false, downloadURL);
+    
+    showToast('Картинка вставлена!', 'success', 1500);
+  } catch (error) {
+    showToast('Ошибка: ' + error.message, 'error', 5000);
+  }
+};
+
+    window.saveAnnouncement = async () => {
+      const title = document.getElementById('ann-title').value.trim();
+      const content = document.getElementById('ann-content').innerHTML.trim();
+      const errorDiv = document.getElementById('error');
+
+      if (!title) { errorDiv.innerText = 'Заполните заголовок'; return; }
+      if (!content || content === '<br>') { errorDiv.innerText = 'Заполните текст'; return; }
+
+      try {
+        await updateDoc(doc(db, "announcements", annId), {
+          title: title,
+          content: content,
+          updatedAt: new Date()
+        });
+        showToast('Объявление обновлено!', 'success', 1500);
+        setTimeout(() => window.location.href = 'announcement.html?id=' + annId, 800);
+      } catch (error) {
+        errorDiv.innerText = 'Ошибка: ' + error.message;
+      }
+    };
+  </script>
+</body>
+</html>

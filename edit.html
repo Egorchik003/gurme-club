@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <meta charset="UTF-8">
+  <title>ГурмэКлаб — Редактирование</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <script type="module">
+    import { renderHeader } from "./components.js";
+    renderHeader();
+  </script>
+
+  <div class="container" style="margin-top: 80px; max-width: 800px;">
+    <div class="card">
+      <h2>Редактировать пост</h2>
+      ...
+      <div id="error" class="error"></div>
+
+      <!-- Панель инструментов -->
+      <div class="editor-toolbar">
+        <button type="button" onclick="execCmd('bold')" title="Жирный"><b>Ж</b></button>
+        <button type="button" onclick="execCmd('italic')" title="Курсив"><i>К</i></button>
+        <button type="button" onclick="execCmd('underline')" title="Подчёркнутый"><u>Ч</u></button>
+        <button type="button" onclick="execCmd('strikeThrough')" title="Зачёркнутый"><s>З</s></button>
+        <input type="file" id="post-image-input" accept="image/*" style="display: none;" onchange="uploadPostImage()">
+<button type="button" onclick="document.getElementById('post-image-input').click()" title="Картинка">🖼</button>
+      </div>
+
+      <input type="text" id="post-title" placeholder="Заголовок">
+      <select id="post-category" style="margin-bottom: 10px;">
+  <option value="">Без категории</option>
+</select>
+
+      <div id="post-content" class="rich-editor" contenteditable="true" data-placeholder="Содержание поста"></div>
+
+      <label style="display:flex; align-items:center; gap:8px; margin:10px 0; font-weight:600; color: var(--text-main);">
+        <input type="checkbox" id="post-open" style="width:auto; margin:0;">
+        Открыть пост для всех
+      </label>
+
+      <button onclick="savePost()">Сохранить</button>
+      <button class="secondary" onclick="goBack()">Назад</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { auth, db } from "./app.js";
+    import { showToast } from "./ui.js";
+    import { onAuthStateChanged, signOut }
+      from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+import { doc, getDoc, updateDoc, collection, addDoc, serverTimestamp, getDocs, query, orderBy } 
+  from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+  import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-storage.js";
+import { storage } from "./app.js";
+
+    let userData = null;
+    let postId = null;
+    let isAdmin = false;
+
+    // 1. Получаем ID поста из URL
+    const params = new URLSearchParams(window.location.search);
+    postId = params.get('id');
+    
+    if (!postId) {
+      showToast('Ошибка: ID поста не найден', 'error', 3000);
+      setTimeout(() => window.location.href = 'feed.html', 1000);
+    }
+
+    // 2. Ждём загрузки пользователя и загружаем пост
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) { window.location.href = 'index.html'; return; }
+
+      try {
+        // Проверяем, админ ли
+        const snap = await getDoc(doc(db, 'users', user.uid));
+        userData = snap.data();
+        isAdmin = userData?.role === 'admin';
+
+              const numberHtml = userData.number 
+        ? ` <span class="post-number">№${userData.number}</span>` 
+        : '';
+      document.getElementById('user-info').innerHTML =
+        `${userData.name}${numberHtml}` +
+        (isAdmin ? ' <span class="badge admin">ADMIN</span>' : ' <span class="badge user">USER</span>');
+
+        if (!isAdmin) {
+          showToast('Доступ только для администратора', 'error', 3000);
+          setTimeout(() => window.location.href = 'feed.html', 1000);
+          return;
+        }
+
+              if (isAdmin) {
+        const createBtn = document.getElementById('create-btn');
+        if (createBtn) createBtn.style.display = 'inline-block';
+      const createPostBtn = document.getElementById('create-post-btn');
+        if (createPostBtn) createPostBtn.style.display = 'flex'; // или 'inline-block'
+      }
+
+       loadCategoriesForSelect();
+
+        // Загружаем пост из базы
+        const postSnap = await getDoc(doc(db, 'posts', postId));
+        if (!postSnap.exists()) {
+          showToast('Пост не существует', 'error', 3000);
+          setTimeout(() => window.location.href = 'feed.html', 1000);
+          return;
+        }
+
+        // Заполняем поля данными
+        const post = postSnap.data();
+        document.getElementById('post-title').value = post.title || '';
+        document.getElementById('post-content').innerHTML = post.content || '';
+        document.getElementById('post-open').checked = post.isOpen !== false;
+        document.getElementById('post-category').value = post.categoryId || '';
+
+        console.log('✅ Пост загружен:', post.title);
+
+      } catch (err) {
+        console.error("Ошибка при загрузке поста:", err);
+        showToast('Ошибка загрузки: ' + err.message, 'error', 5000);
+      }
+    });
+
+    window.logout = () => signOut(auth);
+
+    // Форматирование текста
+    window.execCmd = (cmd) => {
+      document.execCommand(cmd, false, null);
+      document.getElementById('post-content').focus();
+    };
+
+window.uploadPostImage = async () => {
+  const fileInput = document.getElementById('post-image-input');
+  const file = fileInput.files[0];
+  if (!file) return;
+
+  showToast('Загрузка картинки...', 'info', 2000);
+  const storageRef = ref(storage, `posts/${Date.now()}_${file.name}`);
+  
+  try {
+    await uploadBytes(storageRef, file);
+    const downloadURL = await getDownloadURL(storageRef);
+    
+    // Вставляем картинку в редактор
+    document.getElementById('post-content').focus();
+    document.execCommand('insertImage', false, downloadURL);
+    
+    showToast('Картинка вставлена!', 'success', 1500);
+  } catch (error) {
+    showToast('Ошибка: ' + error.message, 'error', 5000);
+  }
+};
+
+    // Сохранение
+window.savePost = async () => {
+  const title = document.getElementById('post-title').value.trim();
+  const content = document.getElementById('post-content').innerHTML.trim();
+  const isOpen = document.getElementById('post-open').checked;
+  
+  // 1. Получаем выбранную категорию
+  const categoryId = document.getElementById('post-category').value;
+
+  if (!title) { showToast('Заполните заголовок', 'error', 3000); return; }
+  if (!content || content === '<br>') { showToast('Заполните содержание', 'error', 3000); return; }
+
+  try {
+    await updateDoc(doc(db, 'posts', postId), {
+      title: title,
+      content: content,
+      isOpen: isOpen,
+      categoryId: categoryId, // <-- 2. Сохраняем ID категории в базу
+      updatedAt: new Date()
+    });
+    
+    showToast('Пост сохранён', 'success', 1500);
+    setTimeout(() => window.location.href = 'post.html?id=' + postId, 800);
+  } catch (error) {
+    showToast('Ошибка: ' + error.message, 'error', 5000);
+  }
+};
+
+// Загрузка категорий для выпадающего списка
+// Загрузка категорий для выпадающего списка
+async function loadCategoriesForSelect() {
+  const select = document.getElementById('post-category');
+  if (!select) return;
+
+  // ОЧИЩАЕМ список перед загрузкой (оставляем только первую опцию "Без категории")
+  select.innerHTML = '<option value="">Без категории</option>';
+
+  try {
+    const snapshot = await getDocs(collection(db, "categories"));
+    console.log("Загружено категорий:", snapshot.size);
+
+    snapshot.forEach((docSnap) => {
+      const option = document.createElement('option');
+      option.value = docSnap.id; 
+      option.textContent = docSnap.data().name || "Без названия";
+      select.appendChild(option);
+    });
+  } catch (error) {
+    console.error("ОШИБКА ЗАГРУЗКИ КАТЕГОРИЙ:", error);
+    showToast("Ошибка категорий: " + error.message, "error", 5000);
+  }
+}
+
+window.goBack = () => {
+  if (postId) {
+    window.location.href = 'post.html?id=' + postId;
+  } else {
+    window.location.href = 'feed.html';
+  }
+};
+
+document.getElementById('post-content').addEventListener('paste', async (e) => {
+  const html = e.clipboardData.getData('text/html');
+  const text = e.clipboardData.getData('text/plain');
+
+  // Если нет HTML (например, вставили просто текст), вставляем как текст без форматирования
+  if (!html) {
+    e.preventDefault();
+    document.execCommand('insertText', false, text);
+    return;
+  }
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const images = doc.querySelectorAll('img');
+
+  if (images.length > 0) {
+    e.preventDefault(); // Останавливаем стандартную вставку
+    if (typeof showToast === 'function') {
+      showToast(`Найдено картинок: ${images.length}. Загрузка...`, 'info', 3000);
+    }
+
+    let newHtml = html;
+    let successCount = 0;
+
+    // Проходим по каждой картинке
+    for (const img of images) {
+      const oldSrc = img.src;
+      if (!oldSrc) continue;
+
+      // Пропускаем уже загруженные картинки (если ссылка ведет на Firebase)
+      if (oldSrc.includes('firebasestorage.googleapis.com')) continue;
+
+      try {
+        // Используем прокси для обхода CORS
+        const proxyUrl = 'https://corsproxy.io/?';
+        const fetchUrl = proxyUrl + encodeURIComponent(oldSrc);
+        
+        const response = await fetch(fetchUrl);
+        if (!response.ok) throw new Error('Не удалось скачать через прокси');
+        
+        const blob = await response.blob();
+        // Определяем расширение файла из типа MIME
+        let ext = 'jpg';
+        if (blob.type.includes('png')) ext = 'png';
+        else if (blob.type.includes('gif')) ext = 'gif';
+        else if (blob.type.includes('webp')) ext = 'webp';
+        else if (blob.type.includes('svg')) ext = 'svg';
+
+        const file = new File([blob], `pasted_${Date.now()}.${ext}`, { type: blob.type });
+
+        // Загружаем в Firebase Storage
+        const storageRef = ref(storage, `posts/${Date.now()}_${file.name}`);
+        await uploadBytes(storageRef, file);
+        const downloadURL = await getDownloadURL(storageRef);
+
+        // Заменяем старую ссылку на новую в HTML
+        // Используем глобальную замену, чтобы заменить все вхождения
+        newHtml = newHtml.split(oldSrc).join(downloadURL);
+        successCount++;
+      } catch (error) {
+        console.error("Ошибка загрузки картинки:", oldSrc, error);
+        // Если картинку скачать не удалось, можно заменить её на заглушку или оставить как есть.
+        // Оставляем как есть, чтобы пользователь видел, что что-то не так.
+      }
+    }
+
+    // Вставляем обновленный HTML
+    document.execCommand('insertHTML', false, newHtml);
+    
+    if (typeof showToast === 'function') {
+      showToast(`Загружено картинок: ${successCount} из ${images.length}`, 'success', 3000);
+    }
+
+  } else {
+    // Если картинок нет, вставляем текст без форматирования
+    e.preventDefault();
+    document.execCommand('insertText', false, text);
+  }
+});
+
+  </script>
+</body>
+</html>

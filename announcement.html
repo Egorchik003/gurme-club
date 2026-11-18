@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <meta charset="UTF-8">
+  <title>ГурмэКлаб — Просмотр объявления</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- НОВАЯ ШАПКА -->
+    <script type="module">
+    import { renderSidebar, renderHeader } from "./components.js";
+    renderHeader();
+    renderSidebar('posts'); // Подсвечиваем вкладку "Посты", так как мы смотрим пост
+  </script>
+
+  <main class="main-content">
+    <div style="max-width: 850px; margin: 0 auto;">
+      <button class="secondary" onclick="location.href='feed.html?tab=announcements'" style="margin-bottom: 20px; width: auto;">← Назад к объявлениям</button>
+      
+      <div id="announcement-detail-container">
+        <div class="card" style="text-align: center; color: var(--text-muted);">Загрузка...</div>
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { auth, db } from "./app.js";
+    import { showToast, showConfirm} from "./ui.js";
+    import { onAuthStateChanged, signOut }
+      from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+    import { doc, getDoc, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc }
+      from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+
+    let currentUser = null;
+    let currentUserData = null;
+    let isAdmin = false;
+    let annId = null;
+
+    const params = new URLSearchParams(window.location.search);
+    annId = params.get('id');
+
+    if (!annId) {
+      window.location.href = 'feed.html';
+    }
+
+    window.logout = () => signOut(auth);
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) { window.location.href = "index.html"; return; }
+
+      currentUser = user;
+      const userSnap = await getDoc(doc(db, "users", user.uid));
+      currentUserData = userSnap.data() || { name: user.email, role: "user" };
+      isAdmin = currentUserData.role === "admin";
+
+      // Отрисовка шапки
+      const numberHtml = currentUserData.number 
+        ? ` <span class="post-number">№${currentUserData.number}</span>` 
+        : '';
+      document.getElementById('user-info').innerHTML =
+        `${currentUserData.name}${numberHtml}` +
+        (isAdmin ? ' <span class="badge admin">ADMIN</span>' : ' <span class="badge user">USER</span>');
+
+      loadAnnouncement();
+    });
+
+    async function loadAnnouncement() {
+      const container = document.getElementById('announcement-detail-container');
+      
+      try {
+        const annSnap = await getDoc(doc(db, "announcements", annId));
+        
+        if (!annSnap.exists()) {
+          container.innerHTML = '<div class="card" style="color: var(--danger);">Объявление не найдено.</div>';
+          return;
+        }
+
+        const ann = annSnap.data();
+        renderFullAnnouncement(annId, ann, container);
+
+      } catch (error) {
+        container.innerHTML = '<div class="card" style="color: var(--danger);">Ошибка загрузки: ' + error.message + '</div>';
+      }
+    }
+
+    function renderFullAnnouncement(annId, ann, container) {
+      const div = document.createElement('div');
+      div.className = 'card';
+      
+      let adminButtons = '';
+      if (isAdmin) {
+        adminButtons = `
+          <div class="post-actions">
+            <button class="icon-btn" onclick="location.href='edit-announcement.html?id=${annId}'" title="Редактировать">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+            </button>
+            <button class="icon-btn danger-icon" onclick="deleteAnnouncement('${annId}')" title="Удалить">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            </button>
+          </div>
+        `;
+      }
+
+      div.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;">
+          <div style="flex-grow: 1;">
+            <div><span class="badge admin">ОБЪЯВЛЕНИЕ</span></div>
+            <div class="post-title" style="font-size: 28px; margin: 10px 0;">${escapeHtml(ann.title)}</div>
+          </div>
+          ${adminButtons}
+        </div>
+
+        <div class="post-content" style="font-size: 16px; line-height: 1.8;">${linkify(escapeHtml(ann.content))}</div>
+        <div class="post-time">${ann.createdAt ? new Date(ann.createdAt.seconds * 1000).toLocaleString() : ''}</div>
+        
+        <hr style="margin: 20px 0;">
+        
+        <h3 style="color: var(--gold-main); font-size: 18px; margin-bottom: 15px;">Комментарии</h3>
+        <div id="comments-list-${annId}"></div>
+        
+        <div style="margin-top: 20px; display: flex; gap: 10px; align-items: stretch;">
+          <input id="comment-input-${annId}" placeholder="Написать комментарий..." style="margin-bottom: 0; flex-grow: 1; background-color: var(--bg-input); border: 1px solid var(--navy-light); color: var(--text-main); padding: 12px 16px; border-radius: 8px; font-family: inherit; box-sizing: border-box;">
+          <button onclick="addComment('${annId}')" style="width: auto; padding: 0 24px; margin: 0; white-space: nowrap;">Отправить</button>
+        </div>
+      `;
+      
+      container.innerHTML = '';
+      container.appendChild(div);
+      
+      loadComments(annId);
+    }
+
+    window.addComment = async (annId) => {
+      const input = document.getElementById(`comment-input-${annId}`);
+      const text = input.value.trim();
+      if (!text) return;
+
+      const commentData = {
+        author: currentUserData.name,
+        text: text,
+        createdAt: serverTimestamp(),
+        avatarUrl: currentUserData.avatarUrl || ''
+      };
+      if (currentUserData.number) commentData.authorNumber = currentUserData.number;
+
+      try {
+        await addDoc(collection(db, "announcements", annId, "comments"), commentData);
+        input.value = '';
+        showToast('Комментарий добавлен', 'success', 2000);
+      } catch (error) {
+        showToast('Ошибка: ' + error.message, 'error', 5000);
+      }
+    };
+
+
+    function loadComments(annId) {
+      const commentsDiv = document.getElementById(`comments-list-${annId}`);
+      const q = query(collection(db, "announcements", annId, "comments"), orderBy("createdAt", "asc"));
+
+      onSnapshot(q, (snapshot) => {
+        commentsDiv.innerHTML = '';
+
+        if (snapshot.empty) {
+          commentsDiv.innerHTML = '<div style="color: var(--text-muted); font-size: 14px; padding: 10px 0;">Пока нет комментариев.</div>';
+          return;
+        }
+
+        snapshot.forEach((docSnap) => {
+          const c = docSnap.data();
+          const commentId = docSnap.id;
+          const numHtml = c.authorNumber ? ` <span class="post-number">№${c.authorNumber}</span>` : '';
+
+          const defaultAvatar = 'data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%231c2b57\'><circle cx=\'12\' cy=\'12\' r=\'12\'/><path d=\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\' fill=\'%23d4af37\'/></svg>';
+          const avatar = c.avatarUrl || defaultAvatar;
+
+          const cDiv = document.createElement('div');
+          cDiv.className = 'comment';
+          
+          cDiv.innerHTML = `
+            <div style="display: flex; gap: 12px; align-items: flex-start;">
+              <img src="${avatar}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1px solid var(--navy-light);">
+              <div style="flex-grow: 1;">
+                <div><strong>${escapeHtml(c.author)}</strong>${numHtml}: <span>${escapeHtml(c.text)}</span></div>
+                <div style="margin-top: 5px;"><a href="#" onclick="toggleReplyForm('${annId}', '${commentId}'); return false;" style="font-size: 12px;">Ответить</a></div>
+              </div>
+            </div>
+            
+            <div id="reply-form-${commentId}" class="reply-form" style="display: none; margin-top: 10px; margin-left: 48px;">
+              <input type="text" id="reply-input-${commentId}" placeholder="Ваш ответ..." style="font-size: 13px; padding: 8px;">
+              <div style="display:flex; gap: 5px; justify-content: flex-end; margin-top: 5px;">
+                <button class="secondary" onclick="toggleReplyForm('${annId}', '${commentId}')" style="width: auto; padding: 4px 10px; font-size: 11px;">Отмена</button>
+                <button onclick="submitReply('${annId}', '${commentId}')" style="width: auto; padding: 4px 10px; font-size: 11px;">Отправить</button>
+              </div>
+            </div>
+            <div id="replies-${commentId}" style="margin-left: 48px; margin-top: 8px;"></div>
+          `;
+          
+          commentsDiv.appendChild(cDiv);
+          loadReplies(annId, commentId);
+        });
+      });
+    }
+
+    window.toggleReplyForm = (annId, commentId) => {
+      const form = document.getElementById(`reply-form-${commentId}`);
+      const input = document.getElementById(`reply-input-${commentId}`);
+      if (!form) return;
+
+      if (form.style.display === 'none' || !form.style.display) {
+        form.style.display = 'block';
+        input.focus();
+      } else {
+        form.style.display = 'none';
+        input.value = '';
+      }
+    };
+
+    window.submitReply = async (annId, commentId) => {
+      const input = document.getElementById(`reply-input-${commentId}`);
+      const text = input.value.trim();
+      if (!text) {
+        showToast('Введите текст ответа', 'info', 2000);
+        return;
+      }
+
+      const replyData = {
+        author: currentUserData.name,
+        text: text,
+        createdAt: serverTimestamp(),
+        avatarUrl: currentUserData.avatarUrl || ''
+      };
+      if (currentUserData.number) replyData.authorNumber = currentUserData.number;
+
+      try {
+        await addDoc(collection(db, "announcements", annId, "comments", commentId, "replies"), replyData);
+        input.value = '';
+        toggleReplyForm(annId, commentId);
+        showToast('Ответ отправлен', 'success', 2000);
+      } catch (error) {
+        showToast('Ошибка: ' + error.message, 'error', 5000);
+      }
+    };
+
+    function loadReplies(annId, commentId) {
+      const repliesDiv = document.getElementById(`replies-${commentId}`);
+      if (!repliesDiv) return;
+
+      const q = query(
+        collection(db, "posts", postId, "comments", commentId, "replies"),
+        orderBy("createdAt", "asc")
+      );
+
+      onSnapshot(q, (snapshot) => {
+        repliesDiv.innerHTML = '';
+        snapshot.forEach((docSnap) => {
+          const r = docSnap.data();
+          const numHtml = r.authorNumber ? ` <span class="post-number">№${r.authorNumber}</span>` : '';
+          
+          // Добавляем аватарку (или заглушку)
+          const defaultAvatar = 'data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%231c2b57\'><circle cx=\'12\' cy=\'12\' r=\'12\'/><path d=\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\' fill=\'%23d4af37\'/></svg>';
+          const avatar = r.avatarUrl || defaultAvatar;
+
+          const rDiv = document.createElement('div');
+          rDiv.className = 'comment reply';
+          
+          // Делаем flex-контейнер для выравнивания аватарки и текста
+          rDiv.style.display = 'flex';
+          rDiv.style.gap = '10px';
+          rDiv.style.alignItems = 'flex-start';
+          
+          rDiv.innerHTML = `
+            <img src="${avatar}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1px solid var(--navy-light);">
+            <div><strong>${escapeHtml(r.author)}</strong>${numHtml}: ${escapeHtml(r.text)}</div>
+          `;
+          repliesDiv.appendChild(rDiv);
+        });
+      });
+    }
+
+    window.deleteAnnouncement = async (annId) => {
+      // Используем наше модальное окно вместо confirm()
+      const isConfirmed = await showConfirm('Удалить объявление?', 'Это действие нельзя отменить.', 'Удалить');
+      if (!isConfirmed) return;
+
+      try {
+        await deleteDoc(doc(db, "announcements", annId));
+        showToast('Объявление удалено', 'success');
+        // Возвращаемся на вкладку объявлений
+        setTimeout(() => window.location.href = 'feed.html?tab=announcements', 1000);
+      } catch (error) {
+        showToast('Ошибка: ' + error.message, 'error', 5000);
+      }
+    };
+
+        function escapeHtml(s) {
+      return String(s ?? '').replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[m]));
+    }
+        // Превращает ссылки в кликабельные
+    function linkify(text) {
+      // Регулярное выражение для поиска URL (http, https, www)
+      const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+)/g;
+      return text.replace(urlRegex, function(url) {
+        let href = url;
+        if (url.startsWith('www.')) {
+          href = 'https://' + url;
+        }
+        // Возвращаем ссылку, открывающуюся в новой вкладке
+        return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--gold-main); text-decoration: underline;">${url}</a>`;
+      });
+    }
+  </script>
+</body>
+</html>
