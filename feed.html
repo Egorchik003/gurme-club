@@ -309,7 +309,7 @@
       div.innerHTML = `
         <div><span class="post-author">${escapeHtml(post.authorName || post.author)}</span> ${post.isOpen === false ? '<span class="badge closed">ЗАКРЫТ</span>' : ''}</div>
         <div class="post-title" style="cursor: pointer;" onclick="location.href='post.html?id=${postId}'">${escapeHtml(post.title)}</div>
-        <div class="post-content" style="cursor: pointer;" onclick="location.href='post.html?id=${postId}'">${linkify(post.content.substring(0, 150))}...</div>
+        <div class="post-content" style="cursor: pointer;" onclick="location.href='post.html?id=${postId}'">${post.content.substring(0, 150)}...</div>
         <div class="post-time">${post.createdAt ? new Date(post.createdAt.seconds * 1000).toLocaleString() : ''}</div>
       `;
       container.appendChild(div);

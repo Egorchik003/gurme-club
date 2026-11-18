@@ -138,18 +138,42 @@ window.uploadPostImage = async () => {
   if (!file) return;
 
   showToast('Загрузка картинки...', 'info', 2000);
-  const storageRef = ref(storage, `posts/${Date.now()}_${file.name}`);
+  
+  const fileExtension = file.name.split('.').pop() || 'png';
+  const fileName = `posts/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExtension}`;
+  const storageRef = ref(storage, fileName);
   
   try {
     await uploadBytes(storageRef, file);
     const downloadURL = await getDownloadURL(storageRef);
-    
-    // Вставляем картинку в редактор
-    document.getElementById('post-content').focus();
-    document.execCommand('insertImage', false, downloadURL);
-    
+
+    const editor = document.getElementById('post-content');
+    editor.focus();
+
+    const img = document.createElement('img');
+    img.src = downloadURL;
+    img.style.maxWidth = '100%';
+    img.style.margin = '10px 0';
+    img.style.display = 'block';
+    img.alt = 'uploaded image';
+
+    const selection = window.getSelection();
+    if (selection.rangeCount && editor.contains(selection.anchorNode)) {
+      const range = selection.getRangeAt(0);
+      range.deleteContents();
+      range.insertNode(img);
+      range.setStartAfter(img);
+      range.setEndAfter(img);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    } else {
+      editor.appendChild(img);
+    }
+
+    fileInput.value = ''; // Очищаем инпут для следующей загрузки
     showToast('Картинка вставлена!', 'success', 1500);
   } catch (error) {
+    console.error("Ошибка загрузки:", error);
     showToast('Ошибка: ' + error.message, 'error', 5000);
   }
 };
@@ -216,19 +240,16 @@ window.goBack = () => {
 };
 
 document.getElementById('post-content').addEventListener('paste', async (e) => {
-  // 1. Проверяем файлы (для скриншотов и Excel)
   const items = (e.clipboardData || window.clipboardData).items;
   let imageFile = null;
 
-  // Пытаемся найти картинку в items
+  // Ищем картинку в буфере
   for (const item of items) {
     if (item.kind === 'file' && item.type.startsWith('image/')) {
       imageFile = item.getAsFile();
       break;
     }
   }
-
-  // Если в items не нашли, проверяем files (резервный вариант для некоторых браузеров)
   if (!imageFile && e.clipboardData.files.length > 0) {
     for (const file of e.clipboardData.files) {
       if (file.type.startsWith('image/')) {
@@ -238,38 +259,53 @@ document.getElementById('post-content').addEventListener('paste', async (e) => {
     }
   }
 
-  // 2. Если картинка-файл найдена (скриншот или картинка из Excel)
+  // Если нашли картинку (скриншот или из Excel)
   if (imageFile) {
-    e.preventDefault(); // Отменяем стандартную вставку
-    if (typeof showToast === 'function') showToast('Загрузка картинки...', 'info', 2000);
+    e.preventDefault();
+    if (typeof showToast === 'function') showToast('Загрузка картинки из буфера...', 'info', 2000);
     
     try {
-      // Определяем расширение
       let ext = 'png';
       if (imageFile.type.includes('jpeg')) ext = 'jpg';
       else if (imageFile.type.includes('gif')) ext = 'gif';
       else if (imageFile.type.includes('webp')) ext = 'webp';
 
-      const fileName = `pasted_${Date.now()}.${ext}`;
+      const fileName = `posts/pasted_${Date.now()}.${ext}`;
+      const storageRef = ref(storage, fileName);
       
-      // Загружаем в Firebase Storage
-      const storageRef = ref(storage, `posts/${fileName}`);
       await uploadBytes(storageRef, imageFile);
       const downloadURL = await getDownloadURL(storageRef);
 
-      // Вставляем тег <img> в редактор
-      document.execCommand('insertHTML', false, `<img src="${downloadURL}" alt="pasted image" style="max-width: 100%;">`);
+      const editor = document.getElementById('post-content');
+      const img = document.createElement('img');
+      img.src = downloadURL;
+      img.style.maxWidth = '100%';
+      img.style.margin = '10px 0';
+      img.style.display = 'block';
+      img.alt = 'pasted image';
+
+      const selection = window.getSelection();
+      if (selection.rangeCount && editor.contains(selection.anchorNode)) {
+        const range = selection.getRangeAt(0);
+        range.deleteContents();
+        range.insertNode(img);
+        range.setStartAfter(img);
+        range.setEndAfter(img);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      } else {
+        editor.appendChild(img);
+      }
       
       if (typeof showToast === 'function') showToast('Картинка вставлена!', 'success', 1500);
-      
     } catch (error) {
       console.error("Ошибка загрузки:", error);
-      if (typeof showToast === 'function') showToast('Ошибка при загрузке картинки: ' + error.message, 'error', 5000);
+      if (typeof showToast === 'function') showToast('Ошибка: ' + error.message, 'error', 5000);
     }
-    return; // Выходим, так как картинку уже обработали
+    return; // Выходим, картинка обработана
   }
 
-  // --- Ниже идет обработка текста и HTML (для копирования с сайтов) ---
+  // --- Обработка обычного текста ---
   const html = e.clipboardData.getData('text/html');
   const text = e.clipboardData.getData('text/plain');
 
@@ -279,75 +315,12 @@ document.getElementById('post-content').addEventListener('paste', async (e) => {
     return;
   }
 
+  // Если скопировали текст с форматированием (жирный, курсив)
+  e.preventDefault();
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
-  const images = doc.querySelectorAll('img');
-
-  if (images.length > 0) {
-    e.preventDefault();
-    if (typeof showToast === 'function') {
-      showToast(`Найдено картинок: ${images.length}. Загрузка...`, 'info', 3000);
-    }
-
-    let newHtml = html;
-    let successCount = 0;
-
-    for (const img of images) {
-      const oldSrc = img.src;
-      if (!oldSrc) continue;
-      if (oldSrc.includes('firebasestorage.googleapis.com')) continue;
-
-      // Если картинка вставлена как Base64 (data:image)
-      if (oldSrc.startsWith('data:image')) {
-          try {
-              const res = await fetch(oldSrc);
-              const blob = await res.blob();
-              const file = new File([blob], `pasted_b64_${Date.now()}.png`, { type: blob.type });
-              const storageRef = ref(storage, `posts/${Date.now()}_${file.name}`);
-              await uploadBytes(storageRef, file);
-              const downloadURL = await getDownloadURL(storageRef);
-              newHtml = newHtml.split(oldSrc).join(downloadURL);
-              successCount++;
-          } catch (err) {
-              console.error("Ошибка обработки Base64:", err);
-          }
-          continue;
-      }
-
-      try {
-        const proxyUrl = 'https://corsproxy.io/?';
-        const fetchUrl = proxyUrl + encodeURIComponent(oldSrc);
-        
-        const response = await fetch(fetchUrl);
-        if (!response.ok) throw new Error('Не удалось скачать через прокси');
-        
-        const blob = await response.blob();
-        let ext = 'jpg';
-        if (blob.type.includes('png')) ext = 'png';
-        else if (blob.type.includes('gif')) ext = 'gif';
-        else if (blob.type.includes('webp')) ext = 'webp';
-
-        const file = new File([blob], `pasted_${Date.now()}.${ext}`, { type: blob.type });
-        const storageRef = ref(storage, `posts/${Date.now()}_${file.name}`);
-        await uploadBytes(storageRef, file);
-        const downloadURL = await getDownloadURL(storageRef);
-
-        newHtml = newHtml.split(oldSrc).join(downloadURL);
-        successCount++;
-      } catch (error) {
-        console.error("Ошибка загрузки картинки:", oldSrc, error);
-      }
-    }
-
-    document.execCommand('insertHTML', false, newHtml);
-    if (typeof showToast === 'function') {
-      showToast(`Загружено картинок: ${successCount} из ${images.length}`, 'success', 3000);
-    }
-
-  } else {
-    e.preventDefault();
-    document.execCommand('insertText', false, text);
-  }
+  // Убираем лишние теги, оставляем только текст и базовое форматирование (опционально)
+  document.execCommand('insertHTML', false, doc.body.innerHTML);
 });
 
   </script>
