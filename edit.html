@@ -216,10 +216,63 @@ window.goBack = () => {
 };
 
 document.getElementById('post-content').addEventListener('paste', async (e) => {
+  // 1. Проверяем файлы (для скриншотов и Excel)
+  const items = (e.clipboardData || window.clipboardData).items;
+  let imageFile = null;
+
+  // Пытаемся найти картинку в items
+  for (const item of items) {
+    if (item.kind === 'file' && item.type.startsWith('image/')) {
+      imageFile = item.getAsFile();
+      break;
+    }
+  }
+
+  // Если в items не нашли, проверяем files (резервный вариант для некоторых браузеров)
+  if (!imageFile && e.clipboardData.files.length > 0) {
+    for (const file of e.clipboardData.files) {
+      if (file.type.startsWith('image/')) {
+        imageFile = file;
+        break;
+      }
+    }
+  }
+
+  // 2. Если картинка-файл найдена (скриншот или картинка из Excel)
+  if (imageFile) {
+    e.preventDefault(); // Отменяем стандартную вставку
+    if (typeof showToast === 'function') showToast('Загрузка картинки...', 'info', 2000);
+    
+    try {
+      // Определяем расширение
+      let ext = 'png';
+      if (imageFile.type.includes('jpeg')) ext = 'jpg';
+      else if (imageFile.type.includes('gif')) ext = 'gif';
+      else if (imageFile.type.includes('webp')) ext = 'webp';
+
+      const fileName = `pasted_${Date.now()}.${ext}`;
+      
+      // Загружаем в Firebase Storage
+      const storageRef = ref(storage, `posts/${fileName}`);
+      await uploadBytes(storageRef, imageFile);
+      const downloadURL = await getDownloadURL(storageRef);
+
+      // Вставляем тег <img> в редактор
+      document.execCommand('insertHTML', false, `<img src="${downloadURL}" alt="pasted image" style="max-width: 100%;">`);
+      
+      if (typeof showToast === 'function') showToast('Картинка вставлена!', 'success', 1500);
+      
+    } catch (error) {
+      console.error("Ошибка загрузки:", error);
+      if (typeof showToast === 'function') showToast('Ошибка при загрузке картинки: ' + error.message, 'error', 5000);
+    }
+    return; // Выходим, так как картинку уже обработали
+  }
+
+  // --- Ниже идет обработка текста и HTML (для копирования с сайтов) ---
   const html = e.clipboardData.getData('text/html');
   const text = e.clipboardData.getData('text/plain');
 
-  // Если нет HTML (например, вставили просто текст), вставляем как текст без форматирования
   if (!html) {
     e.preventDefault();
     document.execCommand('insertText', false, text);
@@ -231,7 +284,7 @@ document.getElementById('post-content').addEventListener('paste', async (e) => {
   const images = doc.querySelectorAll('img');
 
   if (images.length > 0) {
-    e.preventDefault(); // Останавливаем стандартную вставку
+    e.preventDefault();
     if (typeof showToast === 'function') {
       showToast(`Найдено картинок: ${images.length}. Загрузка...`, 'info', 3000);
     }
@@ -239,16 +292,29 @@ document.getElementById('post-content').addEventListener('paste', async (e) => {
     let newHtml = html;
     let successCount = 0;
 
-    // Проходим по каждой картинке
     for (const img of images) {
       const oldSrc = img.src;
       if (!oldSrc) continue;
-
-      // Пропускаем уже загруженные картинки (если ссылка ведет на Firebase)
       if (oldSrc.includes('firebasestorage.googleapis.com')) continue;
 
+      // Если картинка вставлена как Base64 (data:image)
+      if (oldSrc.startsWith('data:image')) {
+          try {
+              const res = await fetch(oldSrc);
+              const blob = await res.blob();
+              const file = new File([blob], `pasted_b64_${Date.now()}.png`, { type: blob.type });
+              const storageRef = ref(storage, `posts/${Date.now()}_${file.name}`);
+              await uploadBytes(storageRef, file);
+              const downloadURL = await getDownloadURL(storageRef);
+              newHtml = newHtml.split(oldSrc).join(downloadURL);
+              successCount++;
+          } catch (err) {
+              console.error("Ошибка обработки Base64:", err);
+          }
+          continue;
+      }
+
       try {
-        // Используем прокси для обхода CORS
         const proxyUrl = 'https://corsproxy.io/?';
         const fetchUrl = proxyUrl + encodeURIComponent(oldSrc);
         
@@ -256,40 +322,29 @@ document.getElementById('post-content').addEventListener('paste', async (e) => {
         if (!response.ok) throw new Error('Не удалось скачать через прокси');
         
         const blob = await response.blob();
-        // Определяем расширение файла из типа MIME
         let ext = 'jpg';
         if (blob.type.includes('png')) ext = 'png';
         else if (blob.type.includes('gif')) ext = 'gif';
         else if (blob.type.includes('webp')) ext = 'webp';
-        else if (blob.type.includes('svg')) ext = 'svg';
 
         const file = new File([blob], `pasted_${Date.now()}.${ext}`, { type: blob.type });
-
-        // Загружаем в Firebase Storage
         const storageRef = ref(storage, `posts/${Date.now()}_${file.name}`);
         await uploadBytes(storageRef, file);
         const downloadURL = await getDownloadURL(storageRef);
 
-        // Заменяем старую ссылку на новую в HTML
-        // Используем глобальную замену, чтобы заменить все вхождения
         newHtml = newHtml.split(oldSrc).join(downloadURL);
         successCount++;
       } catch (error) {
         console.error("Ошибка загрузки картинки:", oldSrc, error);
-        // Если картинку скачать не удалось, можно заменить её на заглушку или оставить как есть.
-        // Оставляем как есть, чтобы пользователь видел, что что-то не так.
       }
     }
 
-    // Вставляем обновленный HTML
     document.execCommand('insertHTML', false, newHtml);
-    
     if (typeof showToast === 'function') {
       showToast(`Загружено картинок: ${successCount} из ${images.length}`, 'success', 3000);
     }
 
   } else {
-    // Если картинок нет, вставляем текст без форматирования
     e.preventDefault();
     document.execCommand('insertText', false, text);
   }
