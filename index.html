@@ -149,26 +149,28 @@ window.handleSubmit = async () => {
       });
       console.log('🟢 Шаг 3 готов. Документ создан!');
 
-              // Отправляем приветственное сообщение от администратора
+// Отправляем приветственное сообщение от администратора
         try {
+          // Ищем админа в базе (берем первого попавшегося)
           const adminSnapshot = await getDocs(query(collection(db, "users"), where("role", "==", "admin")));
           
           if (!adminSnapshot.empty) {
             const adminData = adminSnapshot.docs[0].data();
             const adminId = adminSnapshot.docs[0].id;
 
-            // Создаем чат в коллекции пользователя (от имени админа)
-            // ВАЖНО: В вашей архитектуре чаты хранятся по ID пользователя, 
-            // поэтому мы пишем в чат нового пользователя
+            // Отправляем сообщение в чат нового пользователя
             await addDoc(collection(db, "chats", userCred.user.uid, "messages"), {
               text: "Добро пожаловать в ГурмэКлаб!",
               senderId: adminId,
               senderName: adminData.name || "Администратор",
               createdAt: serverTimestamp()
             });
+            console.log("✅ Приветственное сообщение отправлено");
+          } else {
+            console.warn("⚠️ Админ не найден, приветствие не отправлено");
           }
         } catch (msgError) {
-          console.error("Не удалось отправить приветствие:", msgError);
+          console.error("❌ Не удалось отправить приветствие:", msgError);
         }
 
       // Редирект — только теперь
