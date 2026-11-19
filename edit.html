@@ -40,6 +40,10 @@
         <input type="checkbox" id="post-open" style="width:auto; margin:0;">
         Открыть пост для всех
       </label>
+            <label style="display:flex; align-items:center; gap:8px; margin:10px 0; font-weight:600; color: var(--text-main);">
+        <input type="checkbox" id="post-comments" checked style="width:auto; margin:0;">
+        Разрешить комментарии
+      </label>
 
       <button onclick="savePost()">Сохранить</button>
       <button class="secondary" onclick="goBack()">Назад</button>
@@ -115,6 +119,7 @@ import { storage } from "./app.js";
         document.getElementById('post-content').innerHTML = post.content || '';
         document.getElementById('post-open').checked = post.isOpen !== false;
         document.getElementById('post-category').value = post.categoryId || '';
+        document.getElementById('post-comments').checked = post.commentsEnabled !== false;
 
         console.log('✅ Пост загружен:', post.title);
 
@@ -191,11 +196,13 @@ window.savePost = async () => {
   if (!content || content === '<br>') { showToast('Заполните содержание', 'error', 3000); return; }
 
   try {
+    const commentsEnabled = document.getElementById('post-comments').checked;
     await updateDoc(doc(db, 'posts', postId), {
       title: title,
       content: content,
       isOpen: isOpen,
-      categoryId: categoryId, // <-- 2. Сохраняем ID категории в базу
+      categoryId: categoryId,
+      commentsEnabled: commentsEnabled,
       updatedAt: new Date()
     });
     

@@ -64,31 +64,55 @@
     }
 
     function renderFullPost(postId, post, container) {
-      const div = document.createElement('div'); div.className = 'card';
-      let adminButtons = isAdmin ? `
-        <div class="post-actions">
-          <button class="icon-btn" onclick="location.href='edit.html?id=${postId}'"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
-          <button class="icon-btn danger-icon" onclick="deletePost('${postId}')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
-        </div>` : '';
-
-      div.innerHTML = `
+      const div = document.createElement('div');
+      div.className = 'card';
+      
+      let adminButtons = '';
+      if (isAdmin) {
+        adminButtons = `
+          <div class="post-actions">
+            <button class="icon-btn" onclick="location.href='edit.html?id=${postId}'" title="Редактировать">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+            </button>
+            <button class="icon-btn danger-icon" onclick="deletePost('${postId}')" title="Удалить">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            </button>
+          </div>
+        `;
+      }
+            div.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;">
           <div style="flex-grow: 1;">
-            <div><span class="post-author">${escapeHtml(post.authorName || post.author)}</span> ${post.isOpen === false ? '<span class="badge closed">ЗАКРЫТ</span>' : ''}</div>
+            <div><span class="badge admin">ПОСТ</span></div>
             <div class="post-title" style="font-size: 28px; margin: 10px 0;">${escapeHtml(post.title)}</div>
-          </div>${adminButtons}
+          </div>
+          ${adminButtons}
         </div>
-        <div class="post-content" style="font-size: 16px; line-height: 1.8;">${post.content}</div>
+
+        <!-- Убираем linkify для контента, чтобы не ломать картинки и теги -->
+        <div class="post-content" style="font-size: 16px; line-height: 1.8;">${linkify(post.content)}</div>
         <div class="post-time">${post.createdAt ? new Date(post.createdAt.seconds * 1000).toLocaleString() : ''}</div>
-        <hr style="margin: 20px 0;">
-        <h3 style="color: var(--gold-main); font-size: 18px; margin-bottom: 15px;">Комментарии</h3>
-        <div id="comments-list-${postId}"></div>
-        <div style="margin-top: 25px; display: flex; gap: 10px; align-items: stretch;">
-          <input id="comment-input-${postId}" placeholder="Написать комментарий..." style="margin-bottom: 0; flex-grow: 1; background-color: var(--bg-input); border: 1px solid var(--navy-light); color: var(--text-main); padding: 12px 16px; border-radius: 8px; font-family: inherit; box-sizing: border-box;">
-          <button onclick="addComment('${postId}')" style="width: auto; padding: 0 24px; margin: 0; white-space: nowrap;">Отправить</button>
-        </div>
+        
+        ${post.commentsEnabled !== false ? `
+          <hr style="margin: 20px 0;">
+          <h3 style="color: var(--gold-main); font-size: 18px; margin-bottom: 15px;">Комментарии</h3>
+          <div id="comments-list-${postId}"></div>
+          
+          <div style="margin-top: 20px; display: flex; gap: 10px; align-items: stretch;">
+            <input id="comment-input-${postId}" placeholder="Написать комментарий..." style="margin-bottom: 0; flex-grow: 1; background-color: var(--bg-input); border: 1px solid var(--navy-light); color: var(--text-main); padding: 12px 16px; border-radius: 8px; font-family: inherit; box-sizing: border-box;">
+            <button onclick="addComment('${postId}')" style="width: auto; padding: 0 24px; margin: 0; white-space: nowrap;">Отправить</button>
+          </div>
+        ` : `
+          <div style="margin-top: 20px; color: var(--text-muted); text-align: center; padding: 20px; border-top: 1px solid var(--border-color);">
+            Комментарии к этому посту отключены.
+          </div>
+        `}
       `;
-      container.innerHTML = ''; container.appendChild(div); loadComments(postId);
+      
+      container.innerHTML = '';
+      container.appendChild(div);
+      
+      loadComments(postId); // <-- Эту строку лучше оставить, она просто ничего не загрузит, если элементов нет
     }
 
     window.addComment = async (postId) => {
@@ -100,7 +124,7 @@
 
     function loadComments(postId) {
       const commentsDiv = document.getElementById(`comments-list-${postId}`);
-
+      if (!commentsDiv) return;
       commentsDiv.innerHTML = `
         <div class="skeleton-comment"></div>
         <div class="skeleton-comment"></div>
@@ -163,14 +187,16 @@
     function escapeHtml(s) { return String(s ?? '').replace(/[&<>"']/g, m => ({'&': '&amp;','<': '&lt;','>': '&gt;','"': '&quot;',"'": '&#39;'}[m])); }
         // Превращает ссылки в кликабельные
     function linkify(text) {
-      // Регулярное выражение для поиска URL (http, https, www)
-      const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+)/g;
+      // Регулярное выражение для поиска URL, но игнорируем те, что внутри тегов <img> и <a>
+      const urlRegex = /(https?:\/\/[^\s<>"']+|www\.[^\s<>"']+)/g;
       return text.replace(urlRegex, function(url) {
+        // Проверяем, не находится ли ссылка внутри атрибута src или href
+        if (url.includes('firebasestorage') || url.includes('googleapis')) return url;
+        
         let href = url;
         if (url.startsWith('www.')) {
           href = 'https://' + url;
         }
-        // Возвращаем ссылку, открывающуюся в новой вкладке
         return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--gold-main); text-decoration: underline;">${url}</a>`;
       });
     }

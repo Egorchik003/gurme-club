@@ -639,22 +639,72 @@
 
     // === СООБЩЕНИЯ ===
     async function loadChatUsers() {
-      const list = document.getElementById('chat-users-list'); if (!list) return; list.innerHTML = '<p style="text-align:center; color:var(--text-muted); padding:15px;">Загрузка...</p>';
+      const list = document.getElementById('chat-users-list'); 
+      if (!list) return; 
+      list.innerHTML = '<p style="text-align:center; color:var(--text-muted); padding:15px;">Загрузка...</p>';
+      
       try {
-        let usersSnapshot = isAdmin ? await getDocs(query(collection(db, "users"), where("role", "==", "user"))) : { empty: false, docs: [{ id: currentUser.uid, data: () => currentUserData }] };
+        let usersSnapshot;
+        
+        if (isAdmin) {
+          // Админ видит всех пользователей
+          usersSnapshot = await getDocs(query(collection(db, "users"), where("role", "==", "user")));
+        } else {
+          // Пользователь видит ТОЛЬКО админа
+          usersSnapshot = await getDocs(query(collection(db, "users"), where("role", "==", "admin")));
+        }
+
         list.innerHTML = '';
-        if (usersSnapshot.empty) { list.innerHTML = '<p style="text-align:center; color:var(--text-muted); padding:15px;">Нет чатов</p>'; return; }
+        if (usersSnapshot.empty) { 
+          list.innerHTML = '<p style="text-align:center; color:var(--text-muted); padding:15px;">Нет доступных чатов</p>'; 
+          return; 
+        }
+
         for (const docSnap of usersSnapshot.docs) {
-          const user = docSnap.data(); const userId = docSnap.id;
-          const lastMsgSnap = await getDocs(query(collection(db, "chats", userId, "messages"), orderBy("createdAt", "desc")));
-          let lastMsgText = lastMsgSnap.empty ? "Нет сообщений" : (lastMsgSnap.docs[0].data().senderId === currentUser.uid ? "Вы: " : "") + lastMsgSnap.docs[0].data().text;
-          const item = document.createElement('div'); item.className = 'chat-list-item';
+          const user = docSnap.data(); 
+          const userId = docSnap.id;
+          
+          // Не показываем самого себя в списке (на всякий случай)
+          if (userId === currentUser.uid) continue;
+                    // Пытаемся получить последнее сообщение ТОЛЬКО если это чат текущего пользователя
+          // (для админа мы можем показывать чужие чаты, но для обычного юзера - нет)
+          // Пытаемся получить последнее сообщение
+          let lastMsgText = "Нет сообщений";
+          
+          // ЗАПРАШИВАЕМ ТОЛЬКО ЕСЛИ МЫ АДМИН ИЛИ ЭТО НАШ ЛИЧНЫЙ ЧАТ
+          if (isAdmin || userId === currentUser.uid) {
+            try {
+              const lastMsgSnap = await getDocs(query(collection(db, "chats", userId, "messages"), orderBy("createdAt", "desc")));
+              if (!lastMsgSnap.empty) {
+                const lastMsg = lastMsgSnap.docs[0].data();
+                lastMsgText = (lastMsg.senderId === currentUser.uid ? "Вы: " : "") + lastMsg.text;
+              }
+            } catch (e) {
+              console.warn("Не удалось прочитать сообщения чата:", e);
+              lastMsgText = "Чат недоступен";
+            }
+          } else {
+            // Если это чужой чат (для юзера), не пытаемся его читать!
+            lastMsgText = "Нажмите, чтобы написать";
+          }
+          
+          const item = document.createElement('div'); 
+          item.className = 'chat-list-item';
           const avatarSrc = user.avatarUrl || 'data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%231c2b57\'><circle cx=\'12\' cy=\'12\' r=\'12\'/><path d=\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\' fill=\'%23d4af37\'/></svg>';
+          
           item.innerHTML = `<img src="${avatarSrc}" class="chat-list-avatar"><div class="chat-list-info"><div class="chat-list-name">${escapeHtml(user.name)} <span class="chat-list-number">№${user.number || '---'}</span></div><div class="chat-list-last-msg">${escapeHtml(lastMsgText)}</div></div>`;
-          item.onclick = () => { document.querySelectorAll('.chat-list-item').forEach(el => el.classList.remove('active')); item.classList.add('active'); openChat(userId, user.name, user.number, user.avatarUrl); };
+          
+          item.onclick = () => { 
+            document.querySelectorAll('.chat-list-item').forEach(el => el.classList.remove('active')); 
+            item.classList.add('active'); 
+            openChat(userId, user.name, user.number, user.avatarUrl); 
+          };
           list.appendChild(item);
         }
-      } catch (e) { list.innerHTML = '<p style="color: var(--danger); text-align:center; padding:15px;">Ошибка загрузки</p>'; }
+      } catch (e) { 
+        console.error("Ошибка загрузки чатов:", e); // Это выведет реальную ошибку в консоль
+        list.innerHTML = '<p style="color: var(--danger); text-align:center; padding:15px;">Ошибка загрузки чатов</p>'; 
+      }
     }
 
     function loadChatMessages() {
@@ -686,8 +736,13 @@
     }
 
     function loadMessages() {
-      if (isAdmin) loadChatUsers();
-      else if (!currentChatId) { openChat(currentUser.uid, currentUserData.name, currentUserData.number, currentUserData.avatarUrl); loadChatUsers(); }
+      if (isAdmin) {
+        loadChatUsers();
+      } else {
+        // Обычный пользователь: загружаем список чатов (там будет только админ)
+        loadChatUsers();
+        // Не открываем чат с самим собой! Ждем, пока пользователь кликнет на админа.
+      }
     }
 
     window.sendMessage = async () => {

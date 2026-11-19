@@ -37,6 +37,10 @@
         <input type="checkbox" id="post-open" checked style="width:auto;">
         Открыть пост для всех (если снять — увидят только админы)
       </label>
+            <label style="display:flex; align-items:center; gap:8px; margin:10px 0; font-weight:600; color: var(--text-main);">
+        <input type="checkbox" id="post-comments" checked style="width:auto; margin:0;">
+        Разрешить комментарии
+      </label>
 
       <button onclick="publishPost()">Опубликовать</button>
       <button class="secondary" onclick="location.href='home.html'" style="margin-top:8px;">Назад</button>
@@ -93,15 +97,17 @@ import { storage } from "./app.js";
       }
   try {
 const categoryId = document.getElementById('post-category').value;
-
+const commentsEnabled = document.getElementById('post-comments').checked;
 await addDoc(collection(db, "posts"), {
   title: title,
   content: content,
   isOpen: isOpen,
-  categoryId: categoryId, // <-- НОВОЕ ПОЛЕ
+  categoryId: categoryId, 
+  commentsEnabled: commentsEnabled,
   author: auth.currentUser.email,
   authorName: userData.name,
   createdAt: serverTimestamp()
+  
 });
 
     showToast('Пост опубликован', 'success', 1500);

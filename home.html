@@ -25,34 +25,6 @@
       </div>
     </div>
 
-    <div class="action-buttons" style="display: flex; gap: 15px; margin-bottom: 30px;">
-      <button class="action-btn" onclick="location.href='feed.html'" style="background-color: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 10px 20px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-        📰 Перейти в ленту
-      </button>
-      <button class="action-btn" onclick="location.href='feed.html?tab=messages'" style="background-color: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 10px 20px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-        💬 Сообщения
-      </button>
-    </div>
-
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-      <!-- Последние посты -->
-      <div class="card">
-        <h2 style="color: var(--gold-main); font-size: 20px; margin-bottom: 15px;">Последние посты</h2>
-        <div id="latest-posts">
-          <p style="color: var(--text-muted);">Загрузка...</p>
-        </div>
-      </div>
-
-      <!-- Последние объявления -->
-      <div class="card">
-        <h2 style="color: var(--gold-main); font-size: 20px; margin-bottom: 15px;">Объявления</h2>
-        <div id="latest-announcements">
-          <p style="color: var(--text-muted);">Загрузка...</p>
-        </div>
-      </div>
-    </div>
-  </main>
-
   <script type="module">
     import { auth, db } from "./app.js";
     import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
