@@ -1,5 +1,9 @@
 // components.js
 
+import { auth, db } from "./app.js";
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+
 export function renderSidebar(activeTab) {
   const sidebarHtml = `
   <aside class="sidebar">
@@ -66,6 +70,36 @@ export function renderHeader() {
   </div>
   `;
   document.body.insertAdjacentHTML('afterbegin', headerHtml);
+  if (!window.logout) {
+    window.logout = () => signOut(auth);
+  }
+
+  onAuthStateChanged(auth, async (user) => {
+    const userInfoEl = document.getElementById('user-info');
+    if (!userInfoEl) return;
+
+    if (!user) {
+      userInfoEl.textContent = 'Гость';
+      return;
+    }
+
+    try {
+      const snap = await getDoc(doc(db, "users", user.uid));
+      const data = snap.data() || { name: user.email, role: "user" };
+      const isAdmin = data.role === "admin";
+      const numberHtml = data.number ? ` <span class="post-number">№${data.number}</span>` : '';
+
+      userInfoEl.innerHTML = `${data.name || user.email}${numberHtml}` +
+        (isAdmin ? ' <span class="badge admin">ADMIN</span>' : ' <span class="badge user">USER</span>');
+
+      if (isAdmin) {
+        const createPostBtn = document.getElementById('create-post-btn');
+        if (createPostBtn) createPostBtn.style.display = 'flex';
+      }
+    } catch (e) {
+      userInfoEl.textContent = user.email || 'Профиль';
+    }
+  });
 }
 export function renderFooter() {
   const footerHtml = `

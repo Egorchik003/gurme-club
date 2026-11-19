@@ -16,7 +16,6 @@
   <div class="container" style="margin-top: 80px; max-width: 800px;">
     <div class="card">
       <h2>Редактировать пост</h2>
-      ...
       <div id="error" class="error"></div>
 
       <!-- Панель инструментов -->
@@ -25,6 +24,8 @@
         <button type="button" onclick="execCmd('italic')" title="Курсив"><i>К</i></button>
         <button type="button" onclick="execCmd('underline')" title="Подчёркнутый"><u>Ч</u></button>
         <button type="button" onclick="execCmd('strikeThrough')" title="Зачёркнутый"><s>З</s></button>
+        <button type="button" onclick="execCmd('insertOrderedList')" title="Нумерованный список">1.</button>
+<button type="button" onclick="insertLink('post-content')" title="Вставить ссылку">🔗</button>
         <input type="file" id="post-image-input" accept="image/*" style="display: none;" onchange="uploadPostImage()">
 <button type="button" onclick="document.getElementById('post-image-input').click()" title="Картинка">🖼</button>
       </div>
@@ -40,10 +41,11 @@
         <input type="checkbox" id="post-open" style="width:auto; margin:0;">
         Открыть пост для всех
       </label>
-            <label style="display:flex; align-items:center; gap:8px; margin:10px 0; font-weight:600; color: var(--text-main);">
-        <input type="checkbox" id="post-comments" checked style="width:auto; margin:0;">
-        Разрешить комментарии
-      </label>
+        <select id="post-comments-mode" style="margin: 10px 0 15px 0;">
+        <option value="all">Разрешить комментарии</option>
+        <option value="private">Приватные комментарии</option>
+        <option value="disabled">Отключить комментарии</option>
+      </select>
 
       <button onclick="savePost()">Сохранить</button>
       <button class="secondary" onclick="goBack()">Назад</button>
@@ -52,7 +54,7 @@
 
   <script type="module">
     import { auth, db } from "./app.js";
-    import { showToast } from "./ui.js";
+    import { showToast, showLinkModal } from "./ui.js";
     import { onAuthStateChanged, signOut }
       from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
 import { doc, getDoc, updateDoc, collection, addDoc, serverTimestamp, getDocs, query, orderBy } 
@@ -119,7 +121,8 @@ import { storage } from "./app.js";
         document.getElementById('post-content').innerHTML = post.content || '';
         document.getElementById('post-open').checked = post.isOpen !== false;
         document.getElementById('post-category').value = post.categoryId || '';
-        document.getElementById('post-comments').checked = post.commentsEnabled !== false;
+        const mode = post.commentsMode || (post.commentsEnabled === false ? 'disabled' : 'all');
+document.getElementById('post-comments-mode').value = mode;
 
         console.log('✅ Пост загружен:', post.title);
 
@@ -196,15 +199,16 @@ window.savePost = async () => {
   if (!content || content === '<br>') { showToast('Заполните содержание', 'error', 3000); return; }
 
   try {
-    const commentsEnabled = document.getElementById('post-comments').checked;
-    await updateDoc(doc(db, 'posts', postId), {
-      title: title,
-      content: content,
-      isOpen: isOpen,
-      categoryId: categoryId,
-      commentsEnabled: commentsEnabled,
-      updatedAt: new Date()
-    });
+const commentsMode = document.getElementById('post-comments-mode').value;
+await updateDoc(doc(db, 'posts', postId), {
+  title: title,
+  content: content,
+  isOpen: isOpen,
+  categoryId: categoryId,
+  commentsMode: commentsMode,
+  commentsEnabled: commentsMode !== 'disabled',
+  updatedAt: new Date()
+});
     
     showToast('Пост сохранён', 'success', 1500);
     setTimeout(() => window.location.href = 'post.html?id=' + postId, 800);
@@ -329,6 +333,43 @@ document.getElementById('post-content').addEventListener('paste', async (e) => {
   // Убираем лишние теги, оставляем только текст и базовое форматирование (опционально)
   document.execCommand('insertHTML', false, doc.body.innerHTML);
 });
+
+window.insertLink = async (editorId) => {
+  const editor = document.getElementById(editorId);
+  if (!editor) return;
+
+  // Сохраняем текущее выделение/курсор, чтобы не потерять его при открытии окна
+  const selection = window.getSelection();
+  let savedRange = null;
+  let selectedText = '';
+  if (selection.rangeCount && editor.contains(selection.anchorNode)) {
+    savedRange = selection.getRangeAt(0).cloneRange();
+    selectedText = selection.toString();
+  }
+
+  const result = await showLinkModal(selectedText);
+  if (!result) return;
+
+  editor.focus();
+  const a = document.createElement('a');
+  a.href = result.url;
+  a.textContent = result.text;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+
+  if (savedRange) {
+    selection.removeAllRanges();
+    selection.addRange(savedRange);
+    savedRange.deleteContents();
+    savedRange.insertNode(a);
+    savedRange.setStartAfter(a);
+    savedRange.setEndAfter(a);
+    selection.removeAllRanges();
+    selection.addRange(savedRange);
+  } else {
+    editor.appendChild(a);
+  }
+};
 
   </script>
 </body>

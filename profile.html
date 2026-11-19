@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&display=swap" rel="stylesheet">
+  <meta charset="UTF-8">
+  <title>ГурмэКлаб — Профиль пользователя</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <script type="module">
+    import { renderSidebar, renderHeader, renderFooter } from "./components.js";
+    renderHeader();
+    renderSidebar('profile');
+    renderFooter();
+  </script>
+
+  <main class="main-content">
+    <div style="max-width: 820px; margin: 0 auto;">
+      <button class="secondary" onclick="location.href='feed.html?tab=messages'" style="margin-bottom: 20px; width: auto;">
+        ← Назад в чат
+      </button>
+
+      <div id="profile-view-container">
+        <div class="card" style="text-align: center; color: var(--text-muted);">Загрузка профиля...</div>
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { auth, db } from "./app.js";
+    import { showToast } from "./ui.js";
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+    import { doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+
+    window.logout = () => signOut(auth);
+
+    const params = new URLSearchParams(window.location.search);
+    const targetUserId = params.get('id');
+
+    const defaultAvatar = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%231c2b57'><circle cx='12' cy='12' r='12'/><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' fill='%23f4be3b'/></svg>";
+
+    let currentUser = null;
+    let currentUserData = null;
+    let isAdmin = false;
+
+    function escapeHtml(s) {
+      return String(s ?? '').replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[m]));
+    }
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = "index.html";
+        return;
+      }
+
+      currentUser = user;
+      const meSnap = await getDoc(doc(db, "users", user.uid));
+      currentUserData = meSnap.data() || { name: user.email, role: "user" };
+      isAdmin = currentUserData.role === "admin";
+
+      const numberHtml = currentUserData.number ? ` <span class="post-number">№${escapeHtml(currentUserData.number)}</span>` : '';
+      const userInfoEl = document.getElementById('user-info');
+      if (userInfoEl) {
+        userInfoEl.innerHTML = `${escapeHtml(currentUserData.name)}${numberHtml}` +
+          (isAdmin ? ' <span class="badge admin">ADMIN</span>' : ' <span class="badge user">USER</span>');
+      }
+
+      if (isAdmin) {
+        const createPostBtn = document.getElementById('create-post-btn');
+        if (createPostBtn) createPostBtn.style.display = 'flex';
+      }
+
+      const uidToLoad = targetUserId || currentUser.uid;
+
+      // Обычный пользователь может смотреть только свой профиль; админ — любой
+      if (!isAdmin && uidToLoad !== currentUser.uid) {
+        showToast('Просмотр чужих профилей доступен только администратору', 'error', 3500);
+        setTimeout(() => window.location.href = 'feed.html?tab=profile', 1000);
+        return;
+      }
+
+      await loadTargetProfile(uidToLoad);
+    });
+
+    async function loadTargetProfile(uid) {
+      const container = document.getElementById('profile-view-container');
+      try {
+        const snap = await getDoc(doc(db, "users", uid));
+        if (!snap.exists()) {
+          container.innerHTML = '<div class="card" style="color: var(--danger);">Пользователь не найден.</div>';
+          return;
+        }
+
+        const profile = snap.data();
+        const roleBadge = profile.role === 'admin'
+          ? '<span class="badge admin">ADMIN</span>'
+          : '<span class="badge user">USER</span>';
+        const numberBadge = profile.number
+          ? `<span class="post-number">№${escapeHtml(profile.number)}</span>`
+          : '';
+        const avatarSrc = profile.avatarUrl || defaultAvatar;
+        const createdDate = profile.createdAt?.seconds
+          ? new Date(profile.createdAt.seconds * 1000).toLocaleDateString('ru-RU')
+          : 'Не указана';
+
+        const adminControlsHtml = isAdmin ? `
+          <hr>
+          <div style="display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end; justify-content: space-between;">
+            <div style="min-width: 220px; flex-grow: 1;">
+              <label style="display: block; margin-bottom: 6px; font-size: 13px; color: var(--text-muted);">Роль пользователя</label>
+              <select id="view-profile-role" style="margin-bottom: 0;">
+                <option value="user" ${profile.role !== 'admin' ? 'selected' : ''}>Пользователь (USER)</option>
+                <option value="admin" ${profile.role === 'admin' ? 'selected' : ''}>Администратор (ADMIN)</option>
+              </select>
+            </div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <button type="button" onclick="updateUserRole('${escapeHtml(uid)}')" style="width: auto; padding: 12px 20px;">
+                Сохранить роль
+              </button>
+              ${uid !== currentUser.uid ? `
+                <button type="button" class="secondary" onclick="location.href='feed.html?tab=messages'" style="width: auto; padding: 12px 20px;">
+                  Перейти в чаты
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        ` : '';
+
+        container.innerHTML = `
+          <div class="card">
+            <div style="display: flex; gap: 24px; align-items: center; flex-wrap: wrap; margin-bottom: 22px;">
+              <img src="${avatarSrc}" alt="Аватар" style="width: 104px; height: 104px; border-radius: 50%; object-fit: cover; border: 2px solid var(--gold-main); flex-shrink: 0;">
+              <div style="flex-grow: 1; min-width: 240px;">
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px;">
+                  <h2 style="margin: 0; font-size: 26px;">${escapeHtml(profile.name || 'Без имени')}</h2>
+                  ${numberBadge}
+                  ${roleBadge}
+                </div>
+                <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 6px;">
+                  <strong>Email:</strong> ${escapeHtml(profile.email || 'Не указан')}
+                </p>
+                <p style="color: var(--text-muted); font-size: 13px;">
+                  <strong>Дата регистрации:</strong> ${escapeHtml(createdDate)}
+                </p>
+              </div>
+            </div>
+
+            <div style="background: rgba(9, 19, 43, 0.45); border: 1px solid var(--border-glass); border-radius: 12px; padding: 16px;">
+              <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--gold-main); margin-bottom: 8px; font-weight: 700;">
+                О себе
+              </div>
+              <p style="color: var(--text-main); line-height: 1.65; white-space: pre-wrap;">${escapeHtml(profile.bio || 'Пользователь пока не заполнил информацию о себе.')}</p>
+            </div>
+
+            ${adminControlsHtml}
+          </div>
+        `;
+      } catch (err) {
+        console.error("Ошибка загрузки профиля:", err);
+        container.innerHTML = `<div class="card" style="color: var(--danger);">Ошибка загрузки профиля: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    window.updateUserRole = async (uid) => {
+      if (!isAdmin) return;
+      const select = document.getElementById('view-profile-role');
+      if (!select) return;
+
+      try {
+        await updateDoc(doc(db, "users", uid), { role: select.value });
+        showToast('Роль пользователя обновлена', 'success', 2500);
+        await loadTargetProfile(uid);
+      } catch (err) {
+        showToast('Ошибка обновления роли: ' + err.message, 'error', 4000);
+      }
+    };
+  </script>
+</body>
+</html>

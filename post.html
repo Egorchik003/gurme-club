@@ -23,7 +23,7 @@
 
   <script type="module">
     import { auth, db } from "./app.js";
-    import { showToast } from "./ui.js";
+    import { showToast, showConfirm } from "./ui.js";
     import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
     import { doc, getDoc, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
@@ -80,6 +80,10 @@
           </div>
         `;
       }
+
+      const commentsMode = post.commentsMode || (post.commentsEnabled === false ? 'disabled' : 'all');
+      const isPrivateMode = commentsMode === 'private';
+
             div.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;">
           <div style="flex-grow: 1;">
@@ -93,9 +97,12 @@
         <div class="post-content" style="font-size: 16px; line-height: 1.8;">${linkify(post.content)}</div>
         <div class="post-time">${post.createdAt ? new Date(post.createdAt.seconds * 1000).toLocaleString() : ''}</div>
         
-        ${post.commentsEnabled !== false ? `
+${commentsMode !== 'disabled' ? `
           <hr style="margin: 20px 0;">
-          <h3 style="color: var(--gold-main); font-size: 18px; margin-bottom: 15px;">Комментарии</h3>
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
+            <h3 style="color: var(--gold-main); font-size: 18px; margin: 0;">Комментарии</h3>
+            ${isPrivateMode ? `<span class="badge user">${isAdmin ? 'Приватный режим (вы видите все)' : 'Приватный режим (видны только ваши)'}</span>` : ''}
+          </div>
           <div id="comments-list-${postId}"></div>
           
           <div style="margin-top: 20px; display: flex; gap: 10px; align-items: stretch;">
@@ -112,17 +119,34 @@
       container.innerHTML = '';
       container.appendChild(div);
       
-      loadComments(postId); // <-- Эту строку лучше оставить, она просто ничего не загрузит, если элементов нет
+      if (commentsMode !== 'disabled') {
+        loadComments(postId, commentsMode);
+      }
     }
+window.addComment = async (postId) => {
+      const input = document.getElementById(`comment-input-${postId}`);
+      const text = input.value.trim();
+      if (!text) return;
 
-    window.addComment = async (postId) => {
-      const input = document.getElementById(`comment-input-${postId}`); const text = input.value.trim(); if (!text) return;
-      const commentData = { author: currentUserData.name, text, createdAt: serverTimestamp(), avatarUrl: currentUserData.avatarUrl || '' };
+      const commentData = {
+        author: currentUserData.name,
+        authorId: currentUser.uid,
+        text,
+        createdAt: serverTimestamp(),
+        avatarUrl: currentUserData.avatarUrl || ''
+      };
       if (currentUserData.number) commentData.authorNumber = currentUserData.number;
-      try { await addDoc(collection(db, "posts", postId, "comments"), commentData); input.value = ''; showToast('Комментарий добавлен', 'success', 2000); } catch (error) { showToast('Ошибка: ' + error.message, 'error', 5000); }
+
+      try {
+        await addDoc(collection(db, "posts", postId, "comments"), commentData);
+        input.value = '';
+        showToast('Комментарий добавлен', 'success', 2000);
+      } catch (error) {
+        showToast('Ошибка: ' + error.message, 'error', 5000);
+      }
     };
 
-    function loadComments(postId) {
+function loadComments(postId, commentsMode = 'all') {
       const commentsDiv = document.getElementById(`comments-list-${postId}`);
       if (!commentsDiv) return;
       commentsDiv.innerHTML = `
@@ -133,11 +157,28 @@
 
       onSnapshot(query(collection(db, "posts", postId, "comments"), orderBy("createdAt", "asc")), (snapshot) => {
         commentsDiv.innerHTML = '';
-        if (snapshot.empty) return commentsDiv.innerHTML = '<div style="color: var(--text-muted); font-size: 14px; padding: 10px 0;">Пока нет комментариев. Будьте первым!</div>';
-        snapshot.forEach((docSnap) => {
-          const c = docSnap.data(); const commentId = docSnap.id; const numHtml = c.authorNumber ? ` <span class="post-number">№${c.authorNumber}</span>` : '';
+
+        // Фильтруем комментарии в приватном режиме для обычных пользователей
+        const visibleDocs = snapshot.docs.filter((docSnap) => {
+          if (commentsMode !== 'private' || isAdmin) return true;
+          const c = docSnap.data();
+          return c.authorId === currentUser.uid;
+        });
+
+        if (visibleDocs.length === 0) {
+          commentsDiv.innerHTML = commentsMode === 'private' && !isAdmin
+            ? '<div style="color: var(--text-muted); font-size: 14px; padding: 10px 0;">Вы ещё не оставляли комментариев. Ваши комментарии увидите только вы и администратор.</div>'
+            : '<div style="color: var(--text-muted); font-size: 14px; padding: 10px 0;">Пока нет комментариев. Будьте первым!</div>';
+          return;
+        }
+
+        visibleDocs.forEach((docSnap) => {
+          const c = docSnap.data();
+          const commentId = docSnap.id;
+          const numHtml = c.authorNumber ? ` <span class="post-number">№${c.authorNumber}</span>` : '';
           const avatar = c.avatarUrl || 'data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%231c2b57\'><circle cx=\'12\' cy=\'12\' r=\'12\'/><path d=\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\' fill=\'%23d4af37\'/></svg>';
-          const cDiv = document.createElement('div'); cDiv.className = 'comment';
+          const cDiv = document.createElement('div');
+          cDiv.className = 'comment';
           cDiv.innerHTML = `
             <div style="display: flex; gap: 12px; align-items: flex-start;">
               <img src="${avatar}" loading="lazy" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1px solid var(--navy-light);">
@@ -148,7 +189,8 @@
               <div style="display:flex; gap: 5px; justify-content: flex-end; margin-top: 5px;"><button class="secondary" onclick="toggleReplyForm('${postId}', '${commentId}')" style="width: auto; padding: 4px 10px; font-size: 11px;">Отмена</button><button onclick="submitReply('${postId}', '${commentId}')" style="width: auto; padding: 4px 10px; font-size: 11px;">Отправить</button></div>
             </div>
             <div id="replies-${commentId}" style="margin-left: 48px; margin-top: 8px;"></div>`;
-          commentsDiv.appendChild(cDiv); loadReplies(postId, commentId);
+          commentsDiv.appendChild(cDiv);
+          loadReplies(postId, commentId);
         });
       });
     }
@@ -179,10 +221,23 @@
       });
     }
 
-    window.deletePost = async (postId) => {
-      if (!confirm('Удалить этот пост?')) return;
-      try { await deleteDoc(doc(db, "posts", postId)); showToast('Пост удалён', 'success'); setTimeout(() => window.location.href = 'feed.html', 1000); } catch (error) { showToast('Ошибка: ' + error.message, 'error', 5000); }
-    };
+// Заменяем window.deletePost в post.html:
+window.deletePost = async (postId) => {
+  const isConfirmed = await showConfirm(
+    'Удалить этот пост?',
+    'Это действие нельзя отменить.',
+    'Удалить'
+  );
+  if (!isConfirmed) return;
+
+  try {
+    await deleteDoc(doc(db, "posts", postId));
+    showToast('Пост удалён', 'success');
+    setTimeout(() => window.location.href = 'feed.html', 1000);
+  } catch (error) {
+    showToast('Ошибка: ' + error.message, 'error', 5000);
+  }
+};
 
     function escapeHtml(s) { return String(s ?? '').replace(/[&<>"']/g, m => ({'&': '&amp;','<': '&lt;','>': '&gt;','"': '&quot;',"'": '&#39;'}[m])); }
         // Превращает ссылки в кликабельные

@@ -17,19 +17,23 @@
 
     <div class="card">
       <h2>Создать пост</h2>
+      <div id="error" class="error"></div>
 
-      <input type="text" id="post-title" placeholder="Заголовок">
-<select id="post-category" style="margin-bottom: 10px;">
-  <option value="">Без категории</option>
-</select>
       <div class="editor-toolbar">
   <button type="button" onclick="execCmd('bold')" title="Жирный"><b>Ж</b></button>
   <button type="button" onclick="execCmd('italic')" title="Курсив"><i>К</i></button>
   <button type="button" onclick="execCmd('underline')" title="Подчёркнутый"><u>Ч</u></button>
   <button type="button" onclick="execCmd('strikeThrough')" title="Зачёркнутый"><s>З</s></button>
+  <button type="button" onclick="execCmd('insertOrderedList')" title="Нумерованный список">1.</button>
+  <button type="button" onclick="insertLink('post-content')" title="Вставить ссылку">🔗</button>
   <input type="file" id="post-image-input" accept="image/*" style="display: none;" onchange="uploadPostImage()">
 <button type="button" onclick="document.getElementById('post-image-input').click()" title="Картинка">🖼</button>
 </div>
+
+      <input type="text" id="post-title" placeholder="Заголовок">
+<select id="post-category" style="margin-bottom: 10px;">
+  <option value="">Без категории</option>
+</select>
 
 <div id="post-content" class="rich-editor" contenteditable="true" data-placeholder="Содержание поста"></div>
 
@@ -37,10 +41,11 @@
         <input type="checkbox" id="post-open" checked style="width:auto;">
         Открыть пост для всех (если снять — увидят только админы)
       </label>
-            <label style="display:flex; align-items:center; gap:8px; margin:10px 0; font-weight:600; color: var(--text-main);">
-        <input type="checkbox" id="post-comments" checked style="width:auto; margin:0;">
-        Разрешить комментарии
-      </label>
+        <select id="post-comments-mode" style="margin: 10px 0 15px 0;">
+        <option value="all" selected>Разрешить комментарии</option>
+        <option value="private">Приватные комментарии</option>
+        <option value="disabled">Отключить комментарии</option>
+      </select>
 
       <button onclick="publishPost()">Опубликовать</button>
       <button class="secondary" onclick="location.href='home.html'" style="margin-top:8px;">Назад</button>
@@ -53,7 +58,7 @@
       from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
 import { doc, getDoc, updateDoc, collection, addDoc, serverTimestamp, getDocs, query, orderBy } 
   from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
-import { showToast, showConfirm, initFlowers } from "./ui.js";
+import { showToast, showConfirm, initFlowers, showLinkModal } from "./ui.js";
 import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-storage.js";
 import { storage } from "./app.js";
 
@@ -85,29 +90,33 @@ import { storage } from "./app.js";
       
     });
 
-    window.publishPost = async () => {
-      const title = document.getElementById('post-title').value.trim();
-      const content = document.getElementById('post-content').innerHTML.trim();
-      const isOpen = document.getElementById('post-open').checked;
-      const errorDiv = document.getElementById('error');
+window.publishPost = async () => {
+  const title = document.getElementById('post-title').value.trim();
+  const content = document.getElementById('post-content').innerHTML.trim();
+  const isOpen = document.getElementById('post-open').checked;
+  const errorDiv = document.getElementById('error');
+  if (errorDiv) errorDiv.innerText = '';
 
-      if (!title || !content) {
-        errorDiv.innerText = 'Заполните заголовок и содержание';
-        return;
-      }
+  if (!title || !content || content === '<br>') {
+    if (errorDiv) errorDiv.innerText = 'Заполните заголовок и содержание';
+    showToast('Заполните заголовок и содержание', 'error', 3000);
+    return;
+  }
+
   try {
 const categoryId = document.getElementById('post-category').value;
-const commentsEnabled = document.getElementById('post-comments').checked;
+const commentsMode = document.getElementById('post-comments-mode').value;
+
 await addDoc(collection(db, "posts"), {
   title: title,
   content: content,
   isOpen: isOpen,
-  categoryId: categoryId, 
-  commentsEnabled: commentsEnabled,
+  categoryId: categoryId,
+  commentsMode: commentsMode,
+  commentsEnabled: commentsMode !== 'disabled',
   author: auth.currentUser.email,
   authorName: userData.name,
   createdAt: serverTimestamp()
-  
 });
 
     showToast('Пост опубликован', 'success', 1500);
@@ -277,6 +286,43 @@ document.getElementById('post-content').addEventListener('paste', async (e) => {
   // Убираем лишние теги, оставляем только текст и базовое форматирование (опционально)
   document.execCommand('insertHTML', false, doc.body.innerHTML);
 });
+
+window.insertLink = async (editorId) => {
+  const editor = document.getElementById(editorId);
+  if (!editor) return;
+
+  // Сохраняем текущее выделение/курсор, чтобы не потерять его при открытии окна
+  const selection = window.getSelection();
+  let savedRange = null;
+  let selectedText = '';
+  if (selection.rangeCount && editor.contains(selection.anchorNode)) {
+    savedRange = selection.getRangeAt(0).cloneRange();
+    selectedText = selection.toString();
+  }
+
+  const result = await showLinkModal(selectedText);
+  if (!result) return;
+
+  editor.focus();
+  const a = document.createElement('a');
+  a.href = result.url;
+  a.textContent = result.text;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+
+  if (savedRange) {
+    selection.removeAllRanges();
+    selection.addRange(savedRange);
+    savedRange.deleteContents();
+    savedRange.insertNode(a);
+    savedRange.setStartAfter(a);
+    savedRange.setEndAfter(a);
+    selection.removeAllRanges();
+    selection.addRange(savedRange);
+  } else {
+    editor.appendChild(a);
+  }
+};
 
   </script>
 </body>

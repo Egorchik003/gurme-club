@@ -23,6 +23,8 @@
           <button type="button" onclick="execCmd('bold')" title="Жирный"><b>Ж</b></button>
           <button type="button" onclick="execCmd('italic')" title="Курсив"><i>К</i></button>
           <button type="button" onclick="execCmd('underline')" title="Подчёркнутый"><u>Ч</u></button>
+          <button type="button" onclick="execCmd('insertOrderedList')" title="Нумерованный список">1.</button>
+<button type="button" onclick="insertLink('ann-content')" title="Вставить ссылку">🔗</button>
           <input type="file" id="ann-image-input" accept="image/*" style="display: none;" onchange="uploadAnnImage()">
 <button type="button" onclick="document.getElementById('ann-image-input').click()" title="Картинка">🖼</button>
         </div>
@@ -38,7 +40,7 @@
 
   <script type="module">
     import { auth, db } from "./app.js";
-    import { showToast } from "./ui.js";
+    import { showToast, showLinkModal } from "./ui.js";
     import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
     import { doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
     import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-storage.js";
@@ -119,6 +121,44 @@ window.uploadAnnImage = async () => {
         errorDiv.innerText = 'Ошибка: ' + error.message;
       }
     };
+
+window.insertLink = async (editorId) => {
+  const editor = document.getElementById(editorId);
+  if (!editor) return;
+
+  // Сохраняем текущее выделение/курсор, чтобы не потерять его при открытии окна
+  const selection = window.getSelection();
+  let savedRange = null;
+  let selectedText = '';
+  if (selection.rangeCount && editor.contains(selection.anchorNode)) {
+    savedRange = selection.getRangeAt(0).cloneRange();
+    selectedText = selection.toString();
+  }
+
+  const result = await showLinkModal(selectedText);
+  if (!result) return;
+
+  editor.focus();
+  const a = document.createElement('a');
+  a.href = result.url;
+  a.textContent = result.text;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+
+  if (savedRange) {
+    selection.removeAllRanges();
+    selection.addRange(savedRange);
+    savedRange.deleteContents();
+    savedRange.insertNode(a);
+    savedRange.setStartAfter(a);
+    savedRange.setEndAfter(a);
+    selection.removeAllRanges();
+    selection.addRange(savedRange);
+  } else {
+    editor.appendChild(a);
+  }
+};
+
   </script>
 </body>
 </html>

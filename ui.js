@@ -110,4 +110,54 @@ export function initFlowers() {
   for (let i = 0; i < 30; i++) {
     createFlower();
   }
+  
+}
+// ===== МОДАЛЬНОЕ ОКНО ВСТАВКИ ССЫЛКИ =====
+export function showLinkModal(defaultText = '') {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal-box" style="text-align: left;">
+        <h3 style="text-align: center;">Вставить ссылку</h3>
+        <label style="display:block; font-size:13px; color:var(--text-muted); margin-bottom:6px;">Текст ссылки</label>
+        <input type="text" id="link-modal-text" placeholder="Например: Нажмите здесь" value="${defaultText.replace(/"/g, '&quot;')}">
+        <label style="display:block; font-size:13px; color:var(--text-muted); margin-bottom:6px;">URL (ссылка)</label>
+        <input type="text" id="link-modal-url" placeholder="https://example.com">
+        <div class="modal-actions" style="margin-top: 10px;">
+          <button type="button" class="secondary" id="link-modal-cancel">Отмена</button>
+          <button type="button" id="link-modal-ok">Вставить</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => overlay.classList.add('active'));
+
+    const textInput = overlay.querySelector('#link-modal-text');
+    const urlInput = overlay.querySelector('#link-modal-url');
+    (defaultText ? urlInput : textInput).focus();
+
+    const close = (result) => {
+      overlay.classList.remove('active');
+      setTimeout(() => overlay.remove(), 250);
+      resolve(result);
+    };
+
+    overlay.querySelector('#link-modal-cancel').onclick = () => close(null);
+    overlay.querySelector('#link-modal-ok').onclick = () => {
+      let url = urlInput.value.trim();
+      const text = textInput.value.trim();
+      if (!url) {
+        urlInput.focus();
+        return;
+      }
+      if (!/^https?:\/\//i.test(url)) {
+        url = 'https://' + url;
+      }
+      close({ text: text || url, url });
+    };
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) close(null);
+    });
+  });
 }
