@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&display=swap" rel="stylesheet">
+  <meta charset="UTF-8">
+  <title>ГурмэКлаб — Контакты</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <script type="module">
+    import { renderSidebar, renderHeader, renderFooter } from "./components.js";
+    renderHeader();
+    renderSidebar('');
+    renderFooter();
+  </script>
+
+  <main class="main-content">
+    <div class="card" style="max-width: 720px; margin: 0 auto; border-left: 3px solid var(--gold-main);">
+      <h2 style="color: var(--gold-hover); letter-spacing: 1px; margin-bottom: 20px;">КОНТАКТЫ</h2>
+
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 16px; border-radius: 12px; background: rgba(9, 19, 43, 0.45); border: 1px solid var(--border-glass);">
+          <span style="color: var(--text-muted); font-size: 14px;">Телефон</span>
+          <a href="tel:+7916982646" style="font-size: 16px; font-weight: 600;">+7 916 982 6466</a>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 16px; border-radius: 12px; background: rgba(9, 19, 43, 0.45); border: 1px solid var(--border-glass);">
+          <span style="color: var(--text-muted); font-size: 14px;">Telegram</span>
+          <a href="https://t.me/maria_garamita" target="_blank" rel="noopener noreferrer" style="font-size: 16px; font-weight: 600;">@maria_garamita</a>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 16px; border-radius: 12px; background: rgba(9, 19, 43, 0.45); border: 1px solid var(--border-glass);">
+          <span style="color: var(--text-muted); font-size: 14px;">WhatsApp</span>
+          <a href="https://wa.me/7916982646" target="_blank" rel="noopener noreferrer" style="font-size: 16px; font-weight: 600;">+7 916 982 646</a>
+        </div>
+      </div>
+
+      <hr style="margin: 26px 0;">
+
+      <h3 style="color: var(--gold-hover); letter-spacing: 0.8px; font-size: 17px; margin-bottom: 14px;">ПОЧТА ДЛЯ ОБРАТНОЙ СВЯЗИ</h3>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 16px; border-radius: 12px; background: rgba(9, 19, 43, 0.45); border: 1px solid var(--border-glass);">
+        <span style="color: var(--text-muted); font-size: 14px;">Почта</span>
+        <a href="mailto:margaretta@mail.ru" style="font-size: 16px; font-weight: 600;">margaretta@mail.ru</a>
+      </div>
+
+      <button class="secondary" onclick="history.back()" style="margin-top: 28px; width: auto; padding: 10px 22px;">← Назад</button>
+    </div>
+  </main>
+</body>
+</html>

@@ -109,7 +109,7 @@ export function renderFooter() {
       <span style="opacity: 0.5;">|</span>
       <a href="privacy" style="color: var(--text-muted); text-decoration: none; transition: 0.2s;" onmouseover="this.style.color='var(--gold-main)'" onmouseout="this.style.color='var(--text-muted)'">Политика конфиденциальности</a>
       <a href="terms" style="color: var(--text-muted); text-decoration: none; transition: 0.2s;" onmouseover="this.style.color='var(--gold-main)'" onmouseout="this.style.color='var(--text-muted)'">Пользовательское соглашение</a>
-      <a href="#" onclick="showToast('Страница в разработке', 'info'); return false;" style="color: var(--text-muted); text-decoration: none; transition: 0.2s;" onmouseover="this.style.color='var(--gold-main)'" onmouseout="this.style.color='var(--text-muted)'">Контакты</a>
+      <a href="contacts" style="color: var(--text-muted); text-decoration: none; transition: 0.2s;" onmouseover="this.style.color='var(--gold-main)'" onmouseout="this.style.color='var(--text-muted)'">Контакты</a>
     </div>
   </footer>
   `;
