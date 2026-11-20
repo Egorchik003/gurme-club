@@ -18,7 +18,7 @@ const app = initializeApp(firebaseConfig);
 
 // Включаем отладку только для локальной разработки
 if (location.hostname === "127.0.0.1" || location.hostname === "localhost") {
-    self.FIREBASE_APPCHECK_DEBUG_TOKEN = "119274cb-3c6d-486d-9f13-b97e16340739";
+    self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
 }
 
  const appCheck = initializeAppCheck(app, {
