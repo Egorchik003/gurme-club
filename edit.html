@@ -72,12 +72,12 @@ import { storage } from "./app.js";
     
     if (!postId) {
       showToast('Ошибка: ID поста не найден', 'error', 3000);
-      setTimeout(() => window.location.href = 'feed.html', 1000);
+      setTimeout(() => window.location.href = 'feed', 1000);
     }
 
     // 2. Ждём загрузки пользователя и загружаем пост
     onAuthStateChanged(auth, async (user) => {
-      if (!user) { window.location.href = 'index.html'; return; }
+      if (!user) { window.location.href = '/'; return; }
 
       try {
         // Проверяем, админ ли
@@ -94,7 +94,7 @@ import { storage } from "./app.js";
 
         if (!isAdmin) {
           showToast('Доступ только для администратора', 'error', 3000);
-          setTimeout(() => window.location.href = 'feed.html', 1000);
+          setTimeout(() => window.location.href = 'feed', 1000);
           return;
         }
 
@@ -111,7 +111,7 @@ import { storage } from "./app.js";
         const postSnap = await getDoc(doc(db, 'posts', postId));
         if (!postSnap.exists()) {
           showToast('Пост не существует', 'error', 3000);
-          setTimeout(() => window.location.href = 'feed.html', 1000);
+          setTimeout(() => window.location.href = 'feed', 1000);
           return;
         }
 
@@ -211,7 +211,7 @@ await updateDoc(doc(db, 'posts', postId), {
 });
     
     showToast('Пост сохранён', 'success', 1500);
-    setTimeout(() => window.location.href = 'post.html?id=' + postId, 800);
+    setTimeout(() => window.location.href = 'post?id=' + postId, 800);
   } catch (error) {
     showToast('Ошибка: ' + error.message, 'error', 5000);
   }
@@ -244,9 +244,9 @@ async function loadCategoriesForSelect() {
 
 window.goBack = () => {
   if (postId) {
-    window.location.href = 'post.html?id=' + postId;
+    window.location.href = 'post?id=' + postId;
   } else {
-    window.location.href = 'feed.html';
+    window.location.href = 'feed';
   }
 };
 

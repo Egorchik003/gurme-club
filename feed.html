@@ -130,7 +130,7 @@
       <div class="card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
           <h2 style="color: var(--gold-main); margin: 0;">Объявления</h2>
-          <button id="create-announcement-btn" class="secondary" onclick="location.href='create-announcement.html'" style="display: none; width: auto; margin: 0; padding: 8px 16px; font-size: 13px;">Создать объявление</button>
+          <button id="create-announcement-btn" class="secondary" onclick="location.href='create-announcement'" style="display: none; width: auto; margin: 0; padding: 8px 16px; font-size: 13px;">Создать объявление</button>
         </div>
         <div id="announcements-container"><p style="color: var(--text-muted); text-align: center;">Загрузка...</p></div>
       </div>
@@ -253,7 +253,7 @@
     };
 
     onAuthStateChanged(auth, async (user) => {
-      if (!user) { window.location.href = "index.html"; return; }
+      if (!user) { window.location.href = "/"; return; }
       currentUser = user;
       
       const userSnap = await getDoc(doc(db, "users", user.uid));
@@ -330,8 +330,8 @@
       div.className = 'card';
       div.innerHTML = `
         <div><span class="post-author">${escapeHtml(post.authorName || post.author)}</span> ${post.isOpen === false ? '<span class="badge closed">ЗАКРЫТ</span>' : ''}</div>
-        <div class="post-title" style="cursor: pointer;" onclick="location.href='post.html?id=${postId}'">${escapeHtml(post.title)}</div>
-        <div class="post-content" style="cursor: pointer;" onclick="location.href='post.html?id=${postId}'">${post.content.substring(0, 150)}...</div>
+        <div class="post-title" style="cursor: pointer;" onclick="location.href='post?id=${postId}'">${escapeHtml(post.title)}</div>
+        <div class="post-content" style="cursor: pointer;" onclick="location.href='post?id=${postId}'">${post.content.substring(0, 150)}...</div>
         <div class="post-time">${post.createdAt ? new Date(post.createdAt.seconds * 1000).toLocaleString() : ''}</div>
       `;
       container.appendChild(div);
@@ -547,8 +547,8 @@
       div.className = 'card';
       div.innerHTML = `
         <div><span class="post-author">${escapeHtml(post.authorName || post.author)}</span> ${post.isOpen === false ? '<span class="badge closed">ЗАКРЫТ</span>' : ''}</div>
-        <div class="post-title" style="cursor: pointer;" onclick="location.href='post.html?id=${postId}'">${escapeHtml(post.title)}</div>
-        <div class="post-content" style="cursor: pointer;" onclick="location.href='post.html?id=${postId}'">${linkify(post.content.substring(0, 150))}...</div>
+        <div class="post-title" style="cursor: pointer;" onclick="location.href='post?id=${postId}'">${escapeHtml(post.title)}</div>
+        <div class="post-content" style="cursor: pointer;" onclick="location.href='post?id=${postId}'">${linkify(post.content.substring(0, 150))}...</div>
         <div class="post-time">${post.createdAt ? new Date(post.createdAt.seconds * 1000).toLocaleString() : ''}</div>
       `;
       container.appendChild(div);
@@ -656,7 +656,7 @@
         snapshot.forEach((docSnap) => {
           const ann = docSnap.data(); const annId = docSnap.id;
           const div = document.createElement('div'); div.className = 'card'; div.style.cssText = 'background: rgba(0,0,0,0.2); margin-bottom: 15px; border-left: 4px solid var(--gold-main);';
-          div.innerHTML = `<div class="post-title" style="font-size: 20px; margin-bottom: 10px; cursor: pointer; text-decoration: underline;" onclick="location.href='announcement.html?id=${annId}'">${escapeHtml(ann.title)}</div><div class="post-content" style="cursor: pointer;" onclick="location.href='announcement.html?id=${annId}'">${linkify(ann.content).substring(0, 150)}...</div><div class="post-time">${ann.createdAt ? new Date(ann.createdAt.seconds * 1000).toLocaleString() : ''}</div>`;
+          div.innerHTML = `<div class="post-title" style="font-size: 20px; margin-bottom: 10px; cursor: pointer; text-decoration: underline;" onclick="location.href='announcement?id=${annId}'">${escapeHtml(ann.title)}</div><div class="post-content" style="cursor: pointer;" onclick="location.href='announcement?id=${annId}'">${linkify(ann.content).substring(0, 150)}...</div><div class="post-time">${ann.createdAt ? new Date(ann.createdAt.seconds * 1000).toLocaleString() : ''}</div>`;
           container.appendChild(div);
         });
       });
@@ -983,7 +983,7 @@ function openChat(userId, userName, userNumber, userAvatarUrl) {
   document.getElementById('chat-window').style.display = 'flex';
   const nameEl = document.getElementById('chat-with-name');
 if (isAdmin) {
-  nameEl.innerHTML = `<a href="profile.html?id=${encodeURIComponent(userId)}" class="chat-profile-link" title="Открыть профиль">${escapeHtml(userName)}</a>`;
+  nameEl.innerHTML = `<a href="profile?id=${encodeURIComponent(userId)}" class="chat-profile-link" title="Открыть профиль">${escapeHtml(userName)}</a>`;
 } else {
   nameEl.innerText = userName;
 }
@@ -1102,7 +1102,7 @@ let allUsersList = [];
                 <div style="font-size: 12px; color: var(--text-muted);">${escapeHtml(data.email || '')}</div>
               </div>
             </div>
-            <button type="button" class="secondary" onclick="location.href='profile.html?id=${encodeURIComponent(id)}'" style="width: auto; padding: 8px 16px; font-size: 13px;">
+            <button type="button" class="secondary" onclick="location.href='profile?id=${encodeURIComponent(id)}'" style="width: auto; padding: 8px 16px; font-size: 13px;">
               Открыть профиль
             </button>
           </div>

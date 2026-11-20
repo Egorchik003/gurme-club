@@ -17,7 +17,7 @@
 
   <main class="main-content">
     <div style="max-width: 820px; margin: 0 auto;">
-      <button class="secondary" onclick="location.href='feed.html?tab=messages'" style="margin-bottom: 20px; width: auto;">
+      <button class="secondary" onclick="location.href='feed?tab=messages'" style="margin-bottom: 20px; width: auto;">
         ← Назад в чат
       </button>
 
@@ -52,7 +52,7 @@
 
     onAuthStateChanged(auth, async (user) => {
       if (!user) {
-        window.location.href = "index.html";
+        window.location.href = "/";
         return;
       }
 
@@ -78,7 +78,7 @@
       // Обычный пользователь может смотреть только свой профиль; админ — любой
       if (!isAdmin && uidToLoad !== currentUser.uid) {
         showToast('Просмотр чужих профилей доступен только администратору', 'error', 3500);
-        setTimeout(() => window.location.href = 'feed.html?tab=profile', 1000);
+        setTimeout(() => window.location.href = 'feed?tab=profile', 1000);
         return;
       }
 
@@ -121,7 +121,7 @@
                 Сохранить роль
               </button>
               ${uid !== currentUser.uid ? `
-                <button type="button" class="secondary" onclick="location.href='feed.html?tab=messages'" style="width: auto; padding: 12px 20px;">
+                <button type="button" class="secondary" onclick="location.href='feed?tab=messages'" style="width: auto; padding: 12px 20px;">
                   Перейти в чаты
                 </button>
               ` : ''}

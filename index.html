@@ -73,7 +73,7 @@
 onAuthStateChanged(auth, (user) => {
   // Если пользователь вошёл, но это НЕ процесс регистрации — перекидываем
   if (user && !isRegistering) {
-    window.location.href = "home.html";
+    window.location.href = "home";
   }
 });
 
@@ -172,7 +172,7 @@ try {
   console.error("❌ Не удалось отправить приветствие:", msgError);
 }
       // Редирект — только теперь
-      window.location.href = "home.html";
+      window.location.href = "home";
     }
   } catch (error) {
     isRegistering = false;   // ← сбрасываем флаг при ошибке
@@ -196,7 +196,7 @@ window.forgotPassword = async (e) => {
   try {
     await sendPasswordResetEmail(auth, email, {
       // ВАЖНО: указываем свой сайт, куда Firebase перенаправит
-      url: window.location.origin + '/reset.html'
+      url: window.location.origin + '/reset'
     });
     errorDiv.style.color = ''; // сброс
 errorDiv.className = 'error success';
@@ -235,7 +235,7 @@ window.sendLoginLink = async () => {
 
   // Настройки ссылки
   const actionCodeSettings = {
-    url: window.location.origin + '/home.html', // Куда перекинуть после входа
+    url: window.location.origin + '/home', // Куда перекинуть после входа
     handleCodeInApp: true, // Важно для входа по ссылке
   };
 

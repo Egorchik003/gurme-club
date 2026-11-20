@@ -32,7 +32,7 @@
           </span>
           <h3>Объявления</h3>
         </div>
-        <a href="feed.html?tab=announcements" class="home-ann-all-link">Все объявления →</a>
+        <a href="feed?tab=announcements" class="home-ann-all-link">Все объявления →</a>
       </div>
 
       <div id="latest-announcements" class="home-ann-list">
@@ -64,7 +64,7 @@
     if (dateEl) dateEl.innerText = new Date().toLocaleDateString('ru-RU', options);
 
     onAuthStateChanged(auth, async (user) => {
-      if (!user) { window.location.href = "index.html"; return; }
+      if (!user) { window.location.href = "/"; return; }
 
       const userSnap = await getDoc(doc(db, "users", user.uid));
       const userData = userSnap.data() || { name: user.email, role: "user" };
@@ -98,7 +98,7 @@
           const post = docSnap.data();
           if (post.isOpen === false && !isAdmin) return;
           const a = document.createElement('a');
-          a.href = `post.html?id=${docSnap.id}`;
+          a.href = `post?id=${docSnap.id}`;
           a.style.cssText = "display: block; padding: 10px; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;";
           a.innerHTML = `<div style="font-weight: bold; color: var(--text-main); margin-bottom: 4px;">${post.title}</div><div style="font-size: 12px; color: var(--text-muted);">${post.authorName || post.author}</div>`;
           container.appendChild(a);
@@ -115,7 +115,7 @@ function loadLatestAnnouncements() {
         container.innerHTML = '';
         if (snapshot.empty) {
           container.innerHTML = `
-            <a href="feed.html?tab=announcements" class="home-ann-item">
+            <a href="feed?tab=announcements" class="home-ann-item">
               <div class="home-ann-item-title" style="color: var(--text-muted);">Пока нет объявлений</div>
               <div class="home-ann-item-meta">Перейти в раздел →</div>
             </a>`;
@@ -129,7 +129,7 @@ function loadLatestAnnouncements() {
             : '';
 
           const a = document.createElement('a');
-          a.href = `announcement.html?id=${docSnap.id}`;
+          a.href = `announcement?id=${docSnap.id}`;
           a.className = 'home-ann-item';
 
           const titleDiv = document.createElement('div');

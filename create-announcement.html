@@ -52,7 +52,7 @@ import { storage } from "./app.js";
     let isAdmin = false;
 
     onAuthStateChanged(auth, async (user) => {
-      if (!user) { window.location.href = "index.html"; return; }
+      if (!user) { window.location.href = "/"; return; }
 
       const snap = await getDoc(doc(db, 'users', user.uid));
       userData = snap.data();
@@ -60,7 +60,7 @@ import { storage } from "./app.js";
 
       if (!isAdmin) {
         showToast('Доступ только для администратора', 'error', 3000);
-        setTimeout(() => window.location.href = "feed.html", 1000);
+        setTimeout(() => window.location.href = "feed", 1000);
         return;
       }
     });
@@ -113,7 +113,7 @@ window.uploadAnnImage = async () => {
         });
         
         showToast('Объявление опубликовано!', 'success', 1500);
-        setTimeout(() => window.location.href = 'feed.html?tab=announcements', 800);
+        setTimeout(() => window.location.href = 'feed?tab=announcements', 800);
       } catch (error) {
         errorDiv.innerText = 'Ошибка: ' + error.message;
       }
