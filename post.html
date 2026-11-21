@@ -112,9 +112,11 @@ ${commentsMode !== 'disabled' ? `
           </div>
           <div id="comments-list-${postId}"></div>
           
-            <div style="margin-top: 20px; display: flex; gap: 10px; align-items: stretch;">
-              <input id="comment-input-${postId}" onpaste="handlePasteImage(event, 'comment-${postId}')" placeholder="Написать комментарий..." style="margin-bottom: 0; flex-grow: 1; background-color: var(--bg-input); border: 1px solid var(--navy-light); color: var(--text-main); padding: 12px 16px; border-radius: 8px; font-family: inherit; box-sizing: border-box;">
-              <button onclick="addComment('${postId}')" style="width: auto; padding: 0 24px; margin: 0; white-space: nowrap;">Отправить</button>
+${currentUser ? `
+            <div style="margin-top: 20px;">
+              <div style="display: flex; gap: 10px; align-items: stretch;">
+                <input id="comment-input-${postId}" onpaste="handlePasteImage(event, 'comment-${postId}')" placeholder="Написать комментарий (можно вставить скрин Ctrl+V)..." style="margin-bottom: 0; flex-grow: 1; background-color: var(--bg-input); border: 1px solid var(--navy-light); color: var(--text-main); padding: 12px 16px; border-radius: 8px; font-family: inherit; box-sizing: border-box;">
+                <button onclick="addComment('${postId}')" style="width: auto; padding: 0 24px; margin: 0; white-space: nowrap;">Отправить</button>
               </div>
               <div id="preview-comment-${postId}"></div>
             </div>
@@ -122,6 +124,11 @@ ${commentsMode !== 'disabled' ? `
             <div style="margin-top: 20px; padding: 14px; text-align: center; border-radius: 10px; background: rgba(9, 19, 43, 0.45); border: 1px solid var(--border-glass); color: var(--text-muted); font-size: 14px;">
               <a href="/">Войдите в аккаунт</a>, чтобы оставлять комментарии.
             </div>
+            `}
+            ` : `
+          <div style="margin-top: 20px; color: var(--text-muted); text-align: center; padding: 20px; border-top: 1px solid var(--border-color);">
+            Комментарии к этому посту отключены.
+          </div>
           `}
       `;
       
