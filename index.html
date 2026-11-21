@@ -27,7 +27,10 @@
     👁
   </button>
 </div>
-
+       <label id="remember-wrapper" style="display: flex; align-items: center; gap: 8px; margin: -5px 0 15px 0; font-size: 14px; color: var(--text-muted); cursor: pointer;">
+        <input type="checkbox" id="remember-me" checked style="width: auto; margin: 0;">
+        Запомнить меня
+      </label>
       <button id="submit-btn" onclick="handleSubmit()">Войти</button>
       <button class="secondary" onclick="sendLoginLink()" style="margin-top: 10px;">Войти по ссылке (без пароля)</button>
       <p style="margin-top:12px; text-align:center;">
@@ -50,7 +53,7 @@
     import { auth, db } from "./app.js";
     import {doc, getDoc, setDoc, updateDoc, increment, serverTimestamp,collection, query, where, getDocs, addDoc} 
     from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
-      import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail, sendSignInLinkToEmail } 
+  import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail, sendSignInLinkToEmail, setPersistence, browserLocalPersistence, browserSessionPersistence } 
   from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
   import { showToast, showConfirm, initFlowers } from "./ui.js";
 
@@ -97,6 +100,7 @@ onAuthStateChanged(auth, (user) => {
         ? 'Нет аккаунта? <a href="#" onclick="toggleMode(event)">Зарегистрироваться</a>'
         : 'Есть аккаунт? <a href="#" onclick="toggleMode(event)">Войти</a>';
     };
+    document.getElementById('remember-wrapper').style.display = isLogin ? 'flex' : 'none';
 
     // Функция получения следующего номера (001, 002, ...)
     async function getNextUserNumber() {
@@ -125,6 +129,8 @@ window.handleSubmit = async () => {
 
   try {
     if (isLogin) {
+      const rememberMe = document.getElementById('remember-me')?.checked;
+      await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
       await signInWithEmailAndPassword(auth, email, password);
     } else {
       isRegistering = true;   // ← БЛОКИРУЕМ редирект из onAuthStateChanged
