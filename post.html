@@ -25,7 +25,7 @@
     import { auth, db } from "./app.js";
     import { showToast, showConfirm } from "./ui.js";
     import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
-    import { doc, getDoc, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+    import { doc, getDoc, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
     window.logout = () => signOut(auth);
     let currentUser, currentUserData, isAdmin, postId = new URLSearchParams(window.location.search).get('id');
@@ -64,6 +64,11 @@ onAuthStateChanged(auth, async (user) => {
       try {
         const postSnap = await getDoc(doc(db, "posts", postId));
         if (!postSnap.exists()) return container.innerHTML = '<div class="card" style="color: var(--danger);">Пост не найден.</div>';
+        const viewKey = `viewed_post_${postId}`;
+if (!sessionStorage.getItem(viewKey)) {
+  sessionStorage.setItem(viewKey, '1');
+  updateDoc(doc(db, "posts", postId), { views: increment(1) }).catch(() => {});
+}
         const post = postSnap.data();
         if (!isAdmin && post.isOpen === false) return container.innerHTML = '<div class="card" style="color: var(--danger);">У вас нет доступа к этому посту.</div>';
         renderFullPost(postId, post, container);
@@ -74,16 +79,19 @@ onAuthStateChanged(auth, async (user) => {
       const div = document.createElement('div');
       div.className = 'card';
       
-      let adminButtons = '';
-      if (isAdmin) {
+let adminButtons = '';
+      if (isAdmin || commentScrollBtn) {
         adminButtons = `
           <div class="post-actions">
-            <button class="icon-btn" onclick="location.href='edit?id=${postId}'" title="Редактировать">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-            </button>
-            <button class="icon-btn danger-icon" onclick="deletePost('${postId}')" title="Удалить">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-            </button>
+            ${commentScrollBtn}
+            ${isAdmin ? `
+              <button class="icon-btn" onclick="location.href='edit?id=${postId}'" title="Редактировать">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+              </button>
+              <button class="icon-btn danger-icon" onclick="deletePost('${postId}')" title="Удалить">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+              </button>
+            ` : ''}
           </div>
         `;
       }
@@ -97,6 +105,16 @@ onAuthStateChanged(auth, async (user) => {
             <div><span class="badge admin">ПОСТ</span></div>
             <div class="post-title" style="font-size: 28px; margin: 10px 0;">${escapeHtml(post.title)}</div>
           </div>
+          <div style="display: flex; align-items: center; gap: 16px; margin-top: 6px; font-size: 13px; color: var(--text-muted);">
+  <span style="display: inline-flex; align-items: center; gap: 5px;" title="Просмотры">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+    ${post.views || 0}
+  </span>
+  <span style="display: inline-flex; align-items: center; gap: 5px;" title="Комментарии">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+    ${post.commentsCount || 0}
+  </span>
+</div>
           ${adminButtons}
         </div>
 
@@ -106,7 +124,7 @@ onAuthStateChanged(auth, async (user) => {
         
 ${commentsMode !== 'disabled' ? `
           <hr style="margin: 20px 0;">
-          <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
+          <div id="comments-section" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
             <h3 style="color: var(--gold-main); font-size: 18px; margin: 0;">Комментарии</h3>
             ${isPrivateMode ? `<span class="badge user">${isAdmin ? 'Приватный режим (вы видите все)' : 'Приватный режим (видны только ваши)'}</span>` : ''}
           </div>
@@ -222,6 +240,7 @@ window.addComment = async (postId) => {
 
       try {
         await addDoc(collection(db, "posts", postId, "comments"), commentData);
+        await updateDoc(doc(db, "posts", postId), { commentsCount: increment(1) }).catch(() => {});
         input.value = '';
         showToast('Комментарий добавлен', 'success', 2000);
       } catch (error) {

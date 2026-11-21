@@ -30,7 +30,7 @@
     import { showToast, showConfirm} from "./ui.js";
     import { onAuthStateChanged, signOut }
       from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
-    import { doc, getDoc, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc }
+    import { doc, getDoc, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc, updateDoc, increment }
       from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
     let currentUser = null;
@@ -76,6 +76,12 @@
           container.innerHTML = '<div class="card" style="color: var(--danger);">Объявление не найдено.</div>';
           return;
         }
+        
+        const viewKey = `viewed_ann_${annId}`;
+if (!sessionStorage.getItem(viewKey)) {
+  sessionStorage.setItem(viewKey, '1');
+  updateDoc(doc(db, "announcements", annId), { views: increment(1) }).catch(() => {});
+}
 
         const ann = annSnap.data();
         renderFullAnnouncement(annId, ann, container);
@@ -109,6 +115,16 @@
             <div><span class="badge admin">ОБЪЯВЛЕНИЕ</span></div>
             <div class="post-title" style="font-size: 28px; margin: 10px 0;">${escapeHtml(ann.title)}</div>
           </div>
+          <div style="display: flex; align-items: center; gap: 16px; margin-top: 6px; font-size: 13px; color: var(--text-muted);">
+  <span style="display: inline-flex; align-items: center; gap: 5px;" title="Просмотры">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+    ${ann.views || 0}
+  </span>
+  <span style="display: inline-flex; align-items: center; gap: 5px;" title="Комментарии">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+    ${ann.commentsCount || 0}
+  </span>
+</div>
           ${adminButtons}
         </div>
 
@@ -147,6 +163,7 @@
 
       try {
         await addDoc(collection(db, "announcements", annId, "comments"), commentData);
+        await updateDoc(doc(db, "announcements", annId), { commentsCount: increment(1) }).catch(() => {});
         input.value = '';
         showToast('Комментарий добавлен', 'success', 2000);
       } catch (error) {
